@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Klaslab · tools voor de klas</title>
+<link rel="stylesheet" href="assets/personal.css">
+<script src="assets/config.js"></script>
+<script src="assets/profile.js"></script>
+<style>
+  :root{--bg:#f5f6f8;--card:#fff;--ink:#1b2130;--muted:#667085;--line:#e2e5ea;
+        --bio:#2f8f4e;--bio2:#eaf6ee;--chem:#0e7c86;--chem2:#e6f4f5;--accent:#2457c5}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+  header{background:#1b2130;color:#fff;padding:44px 16px 40px}
+  :root[data-accent] header{background:color-mix(in srgb,var(--accent) 45%,#1b2130)}
+  header .in{position:relative}
+  .set{position:absolute;right:0;top:-24px;color:#c4cad6;text-decoration:none;font-size:.88rem;font-weight:600;padding:6px 10px;border-radius:8px;border:1px solid #ffffff2a}
+  .set:hover{color:#fff;border-color:#ffffff66}
+  header .kicker{margin:0 0 4px;color:#c4cad6;font-weight:600;font-size:.95rem}
+  header .in,main{max-width:1000px;margin:0 auto}
+  header h1{margin:0;font-size:2.1rem;letter-spacing:-.02em;line-height:1.15}
+  header p{margin:8px 0 0;color:#c4cad6;max-width:620px}
+  main{padding:28px 16px 64px}
+  .search{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;font-size:16px;margin-bottom:26px;font-family:inherit}
+  .search:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .search{background:var(--card);color:var(--ink)}
+  section{margin-bottom:34px}
+  h2{display:flex;align-items:center;gap:10px;font-size:1.25rem;margin:0 0 14px}
+  h2 .dot{width:12px;height:12px;border-radius:50%}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+  a.tool,.soon{display:block;position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;text-decoration:none;color:inherit;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
+  a.tool:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(20,30,50,.08)}
+  .ico{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:.95rem;margin-bottom:12px}
+  .bio .ico{background:var(--bio2);color:var(--bio)} .bio a.tool:hover{border-color:var(--bio)}
+  .chem .ico{background:var(--chem2);color:var(--chem)} .chem a.tool:hover{border-color:var(--chem)}
+  .tool h3,.soon h3{margin:0 0 4px;font-size:1.05rem}
+  .tool p,.soon p{margin:0;color:var(--muted);font-size:.9rem}
+  .tags{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}
+  .tags span{font-size:.75rem;background:#f2f4f7;color:var(--muted);padding:2px 8px;border-radius:99px}
+  .soon{opacity:.6;border-style:dashed}
+  .soon .badge{display:inline-block;font-size:.72rem;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:1px 8px;margin-bottom:8px}
+  .star{position:absolute;top:12px;right:12px;width:34px;height:34px;border-radius:8px;border:1px solid transparent;background:none;cursor:pointer;font-size:1.15rem;line-height:1;color:#b0b7c3;display:grid;place-items:center}
+  .star:hover{border-color:var(--line);color:#e0a100}
+  .star[aria-pressed=true]{color:#e0a100}
+  .fav .ico{background:color-mix(in srgb,var(--accent) 12%,var(--card));color:var(--accent)} .fav a.tool:hover{border-color:var(--accent)}
+  [data-theme=dark] .fav .ico{background:color-mix(in srgb,var(--accent) 30%,var(--card));color:color-mix(in srgb,var(--accent) 45%,#fff)}
+  .tags span{background:color-mix(in srgb,var(--muted) 12%,var(--card))}
+  .empty{color:var(--muted);display:none}
+  footer a{color:inherit}
+  footer{color:var(--muted);font-size:.82rem;text-align:center}
+  .feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:22px}
+  .feat div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:.9rem}
+  .feat b{display:block}.feat span{color:var(--muted);font-size:.84rem}
+</style>
+</head>
+<body>
+<header><div class="in">
+  <a class="set" href="settings.html">⚙ Instellingen</a>
+  <p class="kicker" id="kicker" hidden>Klaslab</p>
+  <h1 id="hello">Klaslab</h1>
+  <p>Gratis tools voor leerkrachten. Oefeningen en werkbladen maken, meerkeuzevragen controleren, verbeteren en uitleggen in de klas. Alles werkt in je browser, zonder account.</p>
+</div></header>
+
+<main>
+  <div class="feat"><div><b>📝 Werkbladen</b><span>met verbetersleutel, klaar om af te drukken</span></div><div><b>📱 Leerlingenlink</b><span>met QR code en directe feedback</span></div><div><b>🎯 Distractors</b><span>uit echte denkfouten</span></div><div><b>📽 Projectie</b><span>stap voor stap in de klas</span></div></div>
+  <input class="search" id="q" type="search" placeholder="Zoek een tool, bv. pH, mutatie, zouten…">
+
+  <section class="fav" id="fav" hidden>
+    <h2><span class="dot" style="background:#e0a100"></span>Mijn favorieten</h2>
+    <div class="grid" id="favGrid"></div>
+  </section>
+
+  <section class="bio" data-subject data-id="bio">
+    <h2><span class="dot" style="background:var(--bio)"></span>Biologie</h2>
+    <div class="grid">
+      <a class="tool" href="biologie/mutatie-checker.html" data-k="mutatie dna rna transcriptie translatie splicing intron exon codon eiwit genetica meerkeuzevraag distractor generator">
+        <div class="ico">DNA</div>
+        <h3>Mutatie checker</h3>
+        <p>Van DNA naar eiwit, voor en na een puntmutatie. Genereert nieuwe vragen en exporteert ze als meerkeuzevraag met sleutel en verantwoording.</p>
+        <div class="tags"><span>genetica</span><span>vraaggenerator</span><span>distractors</span></div>
+      </a>
+      <div class="soon"><span class="badge">binnenkort</span><h3>Kruisingen</h3><p>Punnett vierkant en verhoudingen, ook bij geslachtsgebonden overerving.</p></div>
+      <div class="soon"><span class="badge">binnenkort</span><h3>Enzymkinetiek</h3><p>Michaelis Menten met schuifjes voor substraat, temperatuur en remmers.</p></div>
+    </div>
+  </section>
+
+  <section class="chem" data-subject data-id="chem">
+    <h2><span class="dot" style="background:var(--chem)"></span>Chemie</h2>
+    <div class="grid">
+      <a class="tool" href="chemie/ph-rekenaar.html" data-k="ph poh zuur base zwak sterk kz kb zout zouten hydrolyse protolyse evenwicht pkz pkb oefeningen werkblad meerkeuze verbeteren foutdiagnose">
+        <div class="ico">pH</div>
+        <h3>pH rekenaar</h3>
+        <p>Stappenplan, oefeningengenerator met werkblad en leerlingenlink, meerkeuzevragen uit denkfouten, foutdiagnose en puntenverdeling, zout raden en visualisaties.</p>
+        <div class="tags"><span>zuren en basen</span><span>zouten</span><span>verbeteren</span></div>
+      </a>
+      <a class="tool" href="chemie/buffer.html" data-k="buffer henderson hasselbalch pkz buffercapaciteit zuur base">
+        <div class="ico">⇌</div>
+        <h3>Buffers</h3>
+        <p>pH van een buffer, effect van een toegevoegd sterk zuur of base, vergelijking met water en een grafiek van de buffercapaciteit.</p>
+        <div class="tags"><span>buffers</span><span>werkblad</span></div>
+      </a>
+      <a class="tool" href="chemie/titratie.html" data-k="titratie titratiecurve equivalentiepunt indicator halfequivalentie">
+        <div class="ico">⌁</div>
+        <h3>Titratiecurves</h3>
+        <p>Exacte curve, equivalentiepunt, halfequivalentiepunt, berekening van de belangrijke punten en advies voor de indicator.</p>
+        <div class="tags"><span>titratie</span><span>indicatoren</span><span>werkblad</span></div>
+      </a>
+      <a class="tool" href="chemie/indicatoren.html" data-k="indicator kleur omslaggebied fenolftaleine methyloranje broomthymolblauw puzzel">
+        <div class="ico">🎨</div>
+        <h3>Indicatoren</h3>
+        <p>Kleur van elke indicator bij een pH, en pH puzzels waarbij leerlingen uit kleuren het pH gebied afleiden.</p>
+        <div class="tags"><span>indicatoren</span><span>puzzels</span></div>
+      </a>
+      <a class="tool" href="chemie/neutralisatie.html" data-k="neutralisatie reactievergelijking volume mengen stoichiometrie">
+        <div class="ico">⚗</div>
+        <h3>Neutralisatie</h3>
+        <p>Kloppende reactievergelijking, benodigd volume, pH na mengen en een oefeningengenerator met sleutel.</p>
+        <div class="tags"><span>stoichiometrie</span><span>oefeningen</span></div>
+      </a>
+    </div>
+  </section>
+
+  <p class="empty" id="empty">Geen tool gevonden.</p>
+  <footer>Klaslab · <a href="settings.html">instellingen</a> · open source op GitHub</footer>
+</main>
+
+<script>
+/* Persoonlijke startpagina */
+const P0 = () => KLP.get();
+const toolId = a => a.getAttribute('href').replace(/\.html$/, '');
+function greet() {
+  const p = P0(), first = KLP.callName(p.name);
+  const h = new Date().getHours();
+  const g = h < 6 ? 'Goedenacht' : h < 12 ? 'Goedemorgen' : h < 18 ? 'Goedemiddag' : 'Goedenavond';
+  const on = p.greeting && first;
+  document.getElementById('hello').textContent = on ? `${g}, ${first}` : 'Klaslab';
+  const k = document.getElementById('kicker');
+  k.hidden = !on; k.textContent = p.school ? `Klaslab · ${p.school}` : 'Klaslab';
+}
+function stars() {
+  const favs = P0().favorites;
+  document.querySelectorAll('section[data-subject] a.tool').forEach(a => {
+    let b = a.querySelector('.star');
+    if (!b) {
+      b = document.createElement('button');
+      b.type = 'button'; b.className = 'star'; b.textContent = '★';
+      b.addEventListener('click', e => {
+        e.preventDefault(); e.stopPropagation();
+        const id = toolId(a), f = P0().favorites.slice(), i = f.indexOf(id);
+        i < 0 ? f.push(id) : f.splice(i, 1);
+        KLP.save({ favorites: f });
+      });
+      a.appendChild(b);
+    }
+    const on = favs.includes(toolId(a));
+    b.setAttribute('aria-pressed', on);
+    b.setAttribute('aria-label', on ? 'Verwijder uit favorieten' : 'Voeg toe aan favorieten');
+    b.title = on ? 'Verwijder uit favorieten' : 'Voeg toe aan favorieten';
+  });
+}
+function favorites() {
+  const favs = P0().favorites, grid = document.getElementById('favGrid');
+  grid.innerHTML = '';
+  favs.forEach(id => {
+    const a = document.querySelector(`section[data-subject] a.tool[href="${id}.html"]`);
+    if (!a) return;
+    const c = a.cloneNode(true);
+    c.querySelector('.star') && c.querySelector('.star').remove();
+    grid.appendChild(c);
+  });
+  document.getElementById('fav').hidden = !grid.children.length || !!q.value.trim();
+}
+function subjects() {
+  const hid = P0().hidden;
+  document.querySelectorAll('section[data-subject]').forEach(s => s.dataset.off = hid.includes(s.dataset.id) ? '1' : '');
+  filter();
+}
+function render() { greet(); stars(); favorites(); subjects(); }
+document.addEventListener('kl:profile', render);
+
+const q = document.getElementById('q');
+function filter() {
+  const t = q.value.trim().toLowerCase();
+  let any = false;
+  document.querySelectorAll('[data-subject]').forEach(sec => {
+    let n = 0;
+    sec.querySelectorAll('a.tool, .soon').forEach(el => {
+      const hay = (el.textContent + ' ' + (el.dataset.k || '')).toLowerCase();
+      const show = !t || hay.includes(t);
+      el.style.display = show ? '' : 'none';
+      if (show) n++;
+    });
+    /* Verborgen vakken blijven vindbaar via zoeken */
+    const show = n && (t || !sec.dataset.off);
+    sec.style.display = show ? '' : 'none';
+    if (show) any = true;
+  });
+  document.getElementById('fav').hidden = !!t || !document.getElementById('favGrid').children.length;
+  document.getElementById('empty').style.display = any || !document.getElementById('fav').hidden ? 'none' : 'block';
+}
+q.addEventListener('input', filter);
+render();
+</script>
+</body>
+</html>

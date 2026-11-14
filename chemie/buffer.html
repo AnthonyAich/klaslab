@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buffers · Klaslab</title>
+<link rel="stylesheet" href="../assets/common.css">
+<link rel="stylesheet" href="../assets/personal.css">
+<script src="../assets/config.js"></script>
+<script src="../assets/profile.js"></script>
+</head>
+<body>
+<main>
+  <div id="kl-top"></div>
+  <h1>Buffers</h1>
+  <p class="sub">pH van een buffermengsel met de formule van Henderson Hasselbalch, en wat er gebeurt als je een sterk zuur of een sterke base toevoegt. Met vergelijking met zuiver water.</p>
+
+  <section class="card no-print">
+    <h2>Buffermengsel</h2>
+    <div class="grid">
+      <div><label for="pair">Zuur base koppel</label><select id="pair"></select></div>
+      <div id="kBox"><label for="kz">K<sub>z</sub> van het zuur</label><input id="kz" inputmode="decimal"></div>
+      <div><label for="vol">Volume buffer (ml)</label><input id="vol" inputmode="decimal" value="100"></div>
+    </div>
+    <div class="grid" style="margin-top:14px">
+      <div><label for="cz">[zuur] (mol/l)</label><input id="cz" inputmode="decimal" value="0,100"></div>
+      <div><label for="cb">[geconjugeerde base] (mol/l)</label><input id="cb" inputmode="decimal" value="0,100"></div>
+    </div>
+    <h3>Toevoegen</h3>
+    <div class="grid">
+      <div><label for="addType">Wat voeg je toe?</label><select id="addType"><option value="none">niets</option><option value="acid">sterk zuur (HCl)</option><option value="base">sterke base (NaOH)</option></select></div>
+      <div><label for="addC">Concentratie (mol/l)</label><input id="addC" inputmode="decimal" value="1,00"></div>
+      <div><label for="addV">Volume (ml)</label><input id="addV" inputmode="decimal" value="1,00"></div>
+    </div>
+    <div class="btns"><button class="btn pri" id="variant">🎲 Variant</button><button class="btn" id="ws">🖨 Werkblad met oefeningen</button></div>
+    <div id="msg"></div>
+  </section>
+
+  <section class="card" id="outCard"><div id="out"></div></section>
+  <section class="card no-print"><h2>Buffercapaciteit</h2><p class="hint" style="margin:0 0 8px">pH van de buffer en van evenveel zuiver water bij toevoegen van sterk zuur (links) of sterke base (rechts). Zolang beide vormen aanwezig zijn, verandert de pH van de buffer amper.</p><div id="chart"></div></section>
+  <footer>Klaslab · 25 °C · pH = pK<sub>z</sub> + log(n<sub>B</sub> / n<sub>Z</sub>)</footer>
+</main>
+<script src="../assets/qrcode.js"></script>
+<script src="../assets/common.js"></script>
+<script>
+const { fmt, fix, frac, chem, parseNum, KW } = KL;
+const $ = id => document.getElementById(id);
+const PAIRS = [
+  { n: 'azijnzuur / acetaat', Z: 'CH3COOH', B: 'CH3COO-', K: 1.8e-5 },
+  { n: 'mierenzuur / formiaat', Z: 'HCOOH', B: 'HCOO-', K: 1.8e-4 },
+  { n: 'koolzuur / waterstofcarbonaat', Z: 'H2CO3', B: 'HCO3-', K: 4.3e-7 },
+  { n: 'diwaterstoffosfaat / waterstoffosfaat', Z: 'H2PO4-', B: 'HPO4^2-', K: 6.2e-8 },
+  { n: 'ammonium / ammoniak', Z: 'NH4+', B: 'NH3', K: 5.6e-10 },
+  { n: 'eigen koppel', Z: 'HA', B: 'A-', K: 1e-5 },
+];
+$('pair').innerHTML = PAIRS.map((p, i) => `<option value="${i}">${p.n}</option>`).join('');
+$('kz').value = KL.fmtIn(PAIRS[0].K);
+$('pair').onchange = () => { $('kz').value = KL.fmtIn(PAIRS[+$('pair').value].K); run(); };
+
+function phAfter(nZ, nB, K, add, Vtot) {
+  // add > 0: mol sterk zuur, add < 0: mol sterke base
+  const pK = -Math.log10(K);
+  let Z = nZ + add, B = nB - add;
+  if (B <= 0) return { pH: -Math.log10((-B) / Vtot || 1e-7), over: 'zuur' };
+  if (Z <= 0) return { pH: 14 + Math.log10((-Z) / Vtot), over: 'base' };
+  return { pH: pK + Math.log10(B / Z), Z, B };
+}
+/* Exacte pH (ladingsbalans), voor de grafiek */
+function phExact(nZ, nB, K, add, V) {
+  const CT = (nZ + nB) / V, b0 = nB / V, sv = add / V;
+  const f = h => CT * K / (K + h) - h + KW / h - (b0 - sv);
+  return -Math.log10(KL.bisect(f, 1e-15, 10));
+}
+function water(add, Vtot) { if (add === 0) return 7; return add > 0 ? -Math.log10(add / Vtot) : 14 + Math.log10(-add / Vtot); }
+
+function run() {
+  const P = PAIRS[+$('pair').value], K = parseNum($('kz').value), V = parseNum($('vol').value) / 1000;
+  const cz = parseNum($('cz').value), cb = parseNum($('cb').value);
+  const t = $('addType').value, ac = parseNum($('addC').value), av = parseNum($('addV').value) / 1000;
+  const err = [];
+  if (!(K > 0 && K < 1)) err.push('Geef een geldige K<sub>z</sub> tussen 0 en 1.');
+  if (!(V > 0) || !(cz > 0) || !(cb > 0)) err.push('Vul een positief volume en positieve concentraties in.');
+  if (t !== 'none' && (!(ac > 0) || !(av > 0))) err.push('Vul concentratie en volume in van wat je toevoegt.');
+  $('msg').innerHTML = err.map(e => `<div class="msg err">${e}</div>`).join('');
+  if (err.length) { $('out').innerHTML = ''; return; }
+  const Zh = chem(P.Z), Bh = chem(P.B), pK = -Math.log10(K);
+  const nZ = cz * V, nB = cb * V;
+  const pH0 = pK + Math.log10(nB / nZ);
+  let h = `<div class="sol"><div class="head">UITWERKING</div><div class="body">
+    <div class="kv"><div class="k">GEGEVEN</div><div>${fix(V * 1000, 1)} ml buffer met [${Zh}] = ${fmt(cz)} mol/l en [${Bh}] = ${fmt(cb)} mol/l<br>K<sub>z</sub>(${Zh}) = ${fmt(K)}</div>
+    <div class="k">GEVRAAGD</div><div>pH${t !== 'none' ? ' voor en na toevoegen van ' + fix(av * 1000, 2) + ' ml ' + fmt(ac) + ' mol/l ' + (t === 'acid' ? 'HCl' : 'NaOH') : ''}</div></div>
+    <div class="eq">${Zh} + H<sub>2</sub>O ⇌ ${Bh} + H<sub>3</sub>O<sup>+</sup></div>
+    <div class="step"><h4>Stap 1 · pK<sub>z</sub></h4><div class="eq">pK<sub>z</sub> = −log K<sub>z</sub> = −log(${fmt(K)}) = ${fix(pK, 2)}</div></div>
+    <div class="step"><h4>Stap 2 · Hoeveelheden in de buffer</h4>
+      <div class="eq">n(${Zh}) = c · V = ${fmt(cz)} · ${fmt(V)} = ${fmt(nZ)} mol</div>
+      <div class="eq">n(${Bh}) = c · V = ${fmt(cb)} · ${fmt(V)} = ${fmt(nB)} mol</div></div>
+    <div class="step"><h4>Stap 3 · pH van de buffer</h4>
+      <div class="eq">pH = pK<sub>z</sub> + log ${frac(`n(${Bh})`, `n(${Zh})`)} = ${fix(pK, 2)} + log ${frac(fmt(nB), fmt(nZ))} = ${fix(pH0, 2)}</div></div>`;
+  const ratio = nB / nZ;
+  const notes = [];
+  if (ratio < 0.1 || ratio > 10) notes.push(`De verhouding base/zuur is ${fmt(ratio, 2)}. Buiten 0,1 tot 10 werkt een buffer slecht en is de formule minder betrouwbaar.`);
+  if (t !== 'none') {
+    const n = ac * av, Vt = V + av, add = t === 'acid' ? n : -n;
+    const r = phAfter(nZ, nB, K, add, Vt), w = water(add, Vt);
+    const reac = t === 'acid' ? `${Bh} + H<sub>3</sub>O<sup>+</sup> → ${Zh} + H<sub>2</sub>O` : `${Zh} + OH<sup>−</sup> → ${Bh} + H<sub>2</sub>O`;
+    h += `<div class="step"><h4>Stap 4 · Toevoegen van ${t === 'acid' ? 'sterk zuur' : 'sterke base'}</h4>
+      <div class="eq">n(${t === 'acid' ? 'H<sub>3</sub>O<sup>+</sup>' : 'OH<sup>−</sup>'}) = ${fmt(ac)} · ${fmt(av)} = ${fmt(n)} mol</div>
+      <div class="eq">Het reageert volledig met de ${t === 'acid' ? 'base' : 'zuur'} van de buffer: ${reac}</div>
+      <div class="scroll"><table class="ice"><tr><th></th><th>${Zh}</th><th>${Bh}</th></tr>
+        <tr><td class="l">voor (mol)</td><td>${fmt(nZ)}</td><td>${fmt(nB)}</td></tr>
+        <tr><td class="l">verandering (mol)</td><td>${t === 'acid' ? '+' : '−'}${fmt(n)}</td><td>${t === 'acid' ? '−' : '+'}${fmt(n)}</td></tr>
+        <tr><td class="l">na (mol)</td><td>${r.Z ? fmt(r.Z) : '0'}</td><td>${r.B ? fmt(r.B) : '0'}</td></tr></table></div></div>`;
+    if (r.over) {
+      h += `<div class="step"><h4>Stap 5 · Buffercapaciteit overschreden</h4>De ${r.over === 'zuur' ? 'base' : 'zuur'}vorm is volledig op. Het overschot ${r.over === 'zuur' ? 'H<sub>3</sub>O<sup>+</sup>' : 'OH<sup>−</sup>'} bepaalt de pH: <div class="eq">pH ≈ ${fix(r.pH, 2)}</div></div>`;
+      notes.unshift('<b>De buffercapaciteit is overschreden.</b> Er is meer sterk zuur of base toegevoegd dan de buffer kan opvangen.');
+    } else {
+      h += `<div class="step"><h4>Stap 5 · Nieuwe pH</h4><div class="eq">pH = ${fix(pK, 2)} + log ${frac(fmt(r.B), fmt(r.Z))} = ${fix(r.pH, 2)}</div></div>`;
+    }
+    h += `</div></div><div class="result"><div class="big"><div class="lab">pH buffer voor</div><div class="val">${fix(pH0, 2)}</div></div>
+      <div class="big"><div class="lab">pH buffer na</div><div class="val">${fix(r.pH, 2)}</div><div class="hint" style="margin:0">verandering ${r.pH - pH0 >= 0 ? '+' : ''}${fix(r.pH - pH0, 2)}</div></div>
+      <div class="big" style="background:#fff1f3"><div class="lab">Zelfde toevoeging aan ${fix(V * 1000, 0)} ml water</div><div class="val">${fix(w, 2)}</div><div class="hint" style="margin:0">verandering ${w - 7 >= 0 ? '+' : ''}${fix(w - 7, 2)}</div></div></div>`;
+  } else {
+    h += `</div></div><div class="result"><div class="big"><div class="lab">pH buffer</div><div class="val">${fix(pH0, 2)}</div></div><div class="big"><div class="lab">pK<sub>z</sub></div><div class="val">${fix(pK, 2)}</div></div></div>`;
+  }
+  if (Math.abs(nB - nZ) / nZ < 1e-9) notes.push('Bij evenveel zuur als base is pH = pK<sub>z</sub>.');
+  h += notes.map(n => `<div class="msg ${n.startsWith('<b>') ? 'note' : 'info'}">${n}</div>`).join('');
+  $('out').innerHTML = h;
+
+  // grafiek
+  const nmax = Math.max(nZ, nB) * 1.6, pts = [], ptsW = [];
+  for (let i = -100; i <= 100; i++) {
+    const add = -i / 100 * nmax; // links zuur (positief add), rechts base
+    const x = i / 100 * nmax * 1000;
+    pts.push([x, phExact(nZ, nB, K, add, V)]); ptsW.push([x, water(add, V)]);
+  }
+  const marks = [{ x: 0, y: phExact(nZ, nB, K, 0, V), color: '#0e7c86', label: 'buffer', dy: 22 }];
+  if (t !== 'none') { const n = ac * av; const x = (t === 'acid' ? -n : n) * 1000; marks.push({ x, y: phExact(nZ, nB, K, t === 'acid' ? n : -n, V), color: '#c01048', label: 'na toevoegen', dy: -12, left: t === 'acid' }); }
+  const xm = nmax * 1000;
+  $('chart').innerHTML = KL.chart({ x0: -xm, x1: xm, y0: 0, y1: 14, yticks: [0, 2, 4, 6, 8, 10, 12, 14], xticks: [-xm, -xm / 2, 0, xm / 2, xm].map(v => +v.toPrecision(2)),
+    xfmt: v => fix(Math.abs(v), Math.abs(v) < 1 ? 2 : 1), xlab: '← mmol sterk zuur toegevoegd · mmol sterke base toegevoegd →', ylab: 'pH',
+    series: [{ pts: ptsW, color: '#c01048', dash: true, name: 'zuiver water' }, { pts, color: '#0e7c86', name: 'buffer' }], marks,
+    vlines: [{ x: -nB * 1000, color: '#94a3b8', label: 'base op' }, { x: nZ * 1000, color: '#94a3b8', label: 'zuur op' }] });
+}
+['pair', 'kz', 'vol', 'cz', 'cb', 'addType', 'addC', 'addV'].forEach(id => $(id).addEventListener('input', run));
+
+function randomCase(r) {
+  const pi = Math.floor(r() * (PAIRS.length - 1));
+  const M = [0.050, 0.100, 0.150, 0.200, 0.250, 0.300, 0.500];
+  const cz = KL.pick(r, M), cb = KL.pick(r, M), vol = KL.pick(r, [50, 100, 200, 250]);
+  const add = KL.pick(r, ['acid', 'base', 'none']), ac = KL.pick(r, [0.100, 0.500, 1.00]), av = KL.pick(r, [1, 2, 5, 10]);
+  return { pi, cz, cb, vol, add, ac, av };
+}
+function applyCase(c) {
+  $('pair').value = c.pi; $('kz').value = KL.fmtIn(PAIRS[c.pi].K); $('cz').value = fmt(c.cz, 3); $('cb').value = fmt(c.cb, 3); $('vol').value = c.vol;
+  $('addType').value = c.add; $('addC').value = fmt(c.ac, 3); $('addV').value = fmt(c.av, 3); run();
+}
+$('variant').onclick = () => applyCase(randomCase(KL.rng(KL.newSeed())));
+$('ws').onclick = () => {
+  const seed = KL.newSeed(), r = KL.rng(seed), L = [];
+  for (let i = 0; i < 6; i++) L.push(randomCase(r));
+  const q = c => { const P = PAIRS[c.pi]; return `Een buffer bevat ${c.vol} ml oplossing met [${chem(P.Z)}] = ${fmt(c.cz, 3)} mol/l en [${chem(P.B)}] = ${fmt(c.cb, 3)} mol/l. K<sub>z</sub>(${chem(P.Z)}) = ${fmt(P.K, 2)}. Bereken de pH${c.add !== 'none' ? ` na toevoegen van ${c.av} ml ${fmt(c.ac, 3)} mol/l ${c.add === 'acid' ? 'HCl' : 'NaOH'}` : ''}.`; };
+  const ans = c => { const P = PAIRS[c.pi], V = c.vol / 1000, nZ = c.cz * V, nB = c.cb * V, n = c.ac * c.av / 1000; const p0 = -Math.log10(P.K) + Math.log10(nB / nZ); if (c.add === 'none') return `pH = ${fix(p0, 2)}`; const rr = phAfter(nZ, nB, P.K, c.add === 'acid' ? n : -n, V + c.av / 1000); return `pH voor = ${fix(p0, 2)}, na = ${fix(rr.pH, 2)}${rr.over ? ' (buffercapaciteit overschreden)' : ''}`; };
+  let h = KL.worksheetHead('Oefeningen buffers', `Reeks #${seed}`) + L.map((c, i) => `<div class="ws-q"><b>${i + 1}.</b> ${q(c)}<div class="ws-lines"></div><div class="ws-lines"></div><div class="ws-lines"></div></div>`).join('');
+  h += `<div style="break-before:page"></div><h2>Verbetersleutel</h2>` + L.map((c, i) => `<p><b>${i + 1}.</b> ${ans(c)}</p>`).join('');
+  KL.printDoc('Oefeningen buffers', h);
+};
+KL.toolbar({ share: () => ({ pair: $('pair').value, kz: $('kz').value, vol: $('vol').value, cz: $('cz').value, cb: $('cb').value, t: $('addType').value, ac: $('addC').value, av: $('addV').value }) });
+const p = KL.readHash();
+if (p.pair) { $('pair').value = p.pair; ['kz', 'vol', 'cz', 'cb'].forEach(k => p[k] && ($(k).value = p[k])); $('addType').value = p.t || 'none'; $('addC').value = p.ac || '1,00'; $('addV').value = p.av || '1,00'; }
+run();
+</script>
+</body>
+</html>

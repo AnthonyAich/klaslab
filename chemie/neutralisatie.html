@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neutralisatie · Klaslab</title>
+<link rel="stylesheet" href="../assets/common.css">
+<link rel="stylesheet" href="../assets/personal.css">
+<script src="../assets/config.js"></script>
+<script src="../assets/profile.js"></script>
+</head>
+<body>
+<main>
+  <div id="kl-top"></div>
+  <h1>Neutralisatie</h1>
+  <p class="sub">Reactievergelijking, benodigd volume om te neutraliseren, en de pH na het mengen van een sterk zuur en een sterke base.</p>
+  <div class="tabs no-print"><button data-tab="t1" class="on">Benodigd volume</button><button data-tab="t2">Mengen</button><button data-tab="t3">Oefeningen</button></div>
+
+  <section class="card no-print">
+    <div class="grid">
+      <div><label for="acid">Zuur</label><select id="acid"></select></div>
+      <div><label for="base">Base</label><select id="base"></select></div>
+    </div>
+    <div class="grid" style="margin-top:14px">
+      <div><label for="ca">[zuur] (mol/l)</label><input id="ca" inputmode="decimal" value="0,100"></div>
+      <div><label for="va" id="vaLab">Volume zuur (ml)</label><input id="va" inputmode="decimal" value="25,0"></div>
+      <div><label for="cb">[base] (mol/l)</label><input id="cb" inputmode="decimal" value="0,200"></div>
+      <div id="vbBox"><label for="vb">Volume base (ml)</label><input id="vb" inputmode="decimal" value="10,0"></div>
+    </div>
+    <div class="btns"><button class="btn pri" id="variant">🎲 Variant</button></div>
+    <div id="msg"></div>
+  </section>
+
+  <div id="t1"><section class="card"><div id="o1"></div></section></div>
+  <div id="t2" class="hidden"><section class="card"><div id="o2"></div></section></div>
+  <div id="t3" class="hidden"><section class="card no-print">
+    <h2>Oefeningengenerator</h2>
+    <div class="grid"><div><label for="gn">Aantal</label><select id="gn"><option>4</option><option selected>6</option><option>10</option></select></div>
+      <div><label for="gt">Soort</label><select id="gt"><option value="mix">gemengd</option><option value="vol">benodigd volume</option><option value="mix2">pH na mengen</option></select></div></div>
+    <div class="btns"><button class="btn pri" id="ggo">🎲 Nieuwe reeks</button><button class="btn" id="gws">🖨 Werkblad</button><button class="btn" id="gkey">🖨 Verbetersleutel</button></div>
+  </section><section class="card"><div id="glist"></div></section></div>
+  <footer>Klaslab · 25 °C</footer>
+</main>
+<script src="../assets/qrcode.js"></script>
+<script src="../assets/common.js"></script>
+<script>
+const { fmt, fix, frac, chem, parseNum } = KL;
+const $ = id => document.getElementById(id);
+const ACIDS = [
+  { f: 'HCl', a: 'Cl', z: 1, an: 'chloride', strong: true, name: 'zoutzuur' },
+  { f: 'HNO3', a: 'NO3', z: 1, an: 'nitraat', poly: true, strong: true, name: 'salpeterzuur' },
+  { f: 'HBr', a: 'Br', z: 1, an: 'bromide', strong: true, name: 'broomwaterstofzuur' },
+  { f: 'H2SO4', a: 'SO4', z: 2, an: 'sulfaat', poly: true, strong: true, name: 'zwavelzuur' },
+  { f: 'H3PO4', a: 'PO4', z: 3, an: 'fosfaat', poly: true, strong: false, name: 'fosforzuur' },
+  { f: 'CH3COOH', a: 'CH3COO', z: 1, an: 'acetaat', poly: true, strong: false, name: 'azijnzuur', org: true },
+];
+const BASES = [
+  { f: 'NaOH', m: 'Na', z: 1, cn: 'natrium', strong: true, name: 'natriumhydroxide' },
+  { f: 'KOH', m: 'K', z: 1, cn: 'kalium', strong: true, name: 'kaliumhydroxide' },
+  { f: 'Ca(OH)2', m: 'Ca', z: 2, cn: 'calcium', strong: true, name: 'calciumhydroxide' },
+  { f: 'Ba(OH)2', m: 'Ba', z: 2, cn: 'barium', strong: true, name: 'bariumhydroxide' },
+  { f: 'NH3', m: 'NH4', z: 1, cn: 'ammonium', strong: false, name: 'ammoniak', nh3: true, poly: true },
+];
+$('acid').innerHTML = ACIDS.map((a, i) => `<option value="${i}">${a.name} (${KL.chemPlain(a.f)})</option>`).join('');
+$('base').innerHTML = BASES.map((b, i) => `<option value="${i}">${b.name} (${KL.chemPlain(b.f)})</option>`).join('');
+const gcd = (a, b) => b ? gcd(b, a % b) : a;
+const co = n => n > 1 ? n + ' ' : '';
+function saltOf(A, B) {
+  const l = A.z * B.z / gcd(A.z, B.z), nm = l / B.z, na = l / A.z;
+  const cat = nm > 1 ? (B.poly ? `(${chem(B.m)})<sub>${nm}</sub>` : `${chem(B.m)}<sub>${nm}</sub>`) : chem(B.m);
+  const an = na > 1 ? (A.poly ? `(${chem(A.a)})<sub>${na}</sub>` : `${chem(A.a)}<sub>${na}</sub>`) : chem(A.a);
+  const formula = A.org && nm === 1 && na === 1 ? `${chem(A.a)}${chem(B.m)}` : cat + an;
+  return { formula, name: B.cn + A.an, nm, na };
+}
+/* Kloppende reactievergelijking: x zuur + y base → zout + water */
+function equation(A, B) {
+  const s = saltOf(A, B);
+  const xa = s.na, xb = s.nm;              // aantal zuur en base per formule eenheid zout
+  if (B.nh3) return { txt: `${co(xa)}${chem(A.f)} + ${co(xb)}NH<sub>3</sub> → ${s.formula}`, xa, xb, s };
+  const water = xa * A.z;
+  return { txt: `${co(xa)}${chem(A.f)} + ${co(xb)}${chem(B.f)} → ${s.formula} + ${co(water)}H<sub>2</sub>O`, xa, xb, s };
+}
+function read() { return { A: ACIDS[+$('acid').value], B: BASES[+$('base').value], ca: parseNum($('ca').value), va: parseNum($('va').value), cb: parseNum($('cb').value), vb: parseNum($('vb').value) }; }
+let tab = 't1';
+function run() {
+  const S = read();
+  $('vbBox').classList.toggle('hidden', tab === 't1');
+  const err = [];
+  if (!(S.ca > 0) || !(S.va > 0) || !(S.cb > 0) || (tab === 't2' && !(S.vb > 0))) err.push('Vul positieve concentraties en volumes in.');
+  $('msg').innerHTML = err.map(e => `<div class="msg err">${e}</div>`).join('');
+  if (err.length) return;
+  $('o1').innerHTML = volSolution(S);
+  $('o2').innerHTML = mixSolution(S);
+}
+function volSolution(S) {
+  const E = equation(S.A, S.B), nA = S.ca * S.va / 1000, nB = nA * E.xb / E.xa, vb = nB / S.cb * 1000;
+  return `<div class="sol"><div class="head">UITWERKING</div><div class="body">
+    <div class="kv"><div class="k">GEGEVEN</div><div>${fix(S.va, 1)} ml ${chem(S.A.f)} met c = ${fmt(S.ca)} mol/l<br>${chem(S.B.f)} met c = ${fmt(S.cb)} mol/l</div>
+    <div class="k">GEVRAAGD</div><div>volume ${chem(S.B.f)} om volledig te neutraliseren</div></div>
+    <div class="step"><h4>Stap 1 · Reactievergelijking</h4><div class="eq">${E.txt}</div><p class="hint" style="margin:0">Gevormd zout: ${E.s.name}.</p></div>
+    <div class="step"><h4>Stap 2 · Hoeveelheid zuur</h4><div class="eq">n(${chem(S.A.f)}) = c · V = ${fmt(S.ca)} · ${fmt(S.va / 1000)} = ${fmt(nA)} mol</div></div>
+    <div class="step"><h4>Stap 3 · Molverhouding</h4><div class="eq">${frac(`n(${chem(S.B.f)})`, `n(${chem(S.A.f)})`)} = ${frac(E.xb, E.xa)} ⇒ n(${chem(S.B.f)}) = ${fmt(nA)} · ${frac(E.xb, E.xa)} = ${fmt(nB)} mol</div></div>
+    <div class="step"><h4>Stap 4 · Volume base</h4><div class="eq">V = ${frac('n', 'c')} = ${frac(fmt(nB), fmt(S.cb))} = ${fmt(nB / S.cb)} l = ${fix(vb, 2)} ml</div></div>
+    </div></div><div class="result"><div class="big"><div class="lab">Benodigd volume ${chem(S.B.f)}</div><div class="val">${fix(vb, 2)} ml</div></div></div>
+    ${!S.A.strong || !S.B.strong ? `<div class="msg info">Bij het equivalentiepunt is de oplossing hier niet neutraal: er ontstaat het zout ${E.s.name}${!S.A.strong && S.B.strong ? ', met een basisch anion' : S.A.strong && !S.B.strong ? ', met een zuur kation' : ''}. Bekijk de titratietool voor de pH.</div>` : ''}`;
+}
+function mixSolution(S) {
+  if (!S.A.strong || !S.B.strong) return `<div class="msg note">De pH na het mengen kan de tool hier enkel uitrekenen voor een sterk zuur met een sterke base. Bij een zwak zuur of een zwakke base ontstaat een buffer of een zoutoplossing: gebruik daarvoor de tools <a href="buffer.html">Buffers</a> en <a href="titratie.html">Titratiecurves</a>.</div>`;
+  const nH = S.ca * S.va / 1000 * S.A.z, nOH = S.cb * S.vb / 1000 * S.B.z, V = (S.va + S.vb) / 1000;
+  const diff = nH - nOH;
+  let res, pH;
+  if (Math.abs(diff) < 1e-12) { pH = 7; res = 'Evenveel H<sub>3</sub>O<sup>+</sup> als OH<sup>−</sup>: volledig geneutraliseerd, pH = 7,00.'; }
+  else if (diff > 0) { const c = diff / V; pH = -Math.log10(c); res = `Overschot H<sub>3</sub>O<sup>+</sup>: <div class="eq">[H<sub>3</sub>O<sup>+</sup>] = ${frac(fmt(diff) + ' mol', fmt(V) + ' l')} = ${fmt(c)} mol/l ⇒ pH = −log(${fmt(c)}) = ${fix(pH, 2)}</div>`; }
+  else { const c = -diff / V; pH = 14 + Math.log10(c); res = `Overschot OH<sup>−</sup>: <div class="eq">[OH<sup>−</sup>] = ${frac(fmt(-diff) + ' mol', fmt(V) + ' l')} = ${fmt(c)} mol/l ⇒ pOH = ${fix(-Math.log10(c), 2)} ⇒ pH = ${fix(pH, 2)}</div>`; }
+  return `<div class="sol"><div class="head">UITWERKING</div><div class="body">
+    <div class="kv"><div class="k">GEGEVEN</div><div>${fix(S.va, 1)} ml ${fmt(S.ca)} mol/l ${chem(S.A.f)} + ${fix(S.vb, 1)} ml ${fmt(S.cb)} mol/l ${chem(S.B.f)}</div><div class="k">GEVRAAGD</div><div>pH van het mengsel</div></div>
+    <div class="step"><h4>Stap 1 · Reactie</h4><div class="eq">H<sub>3</sub>O<sup>+</sup> + OH<sup>−</sup> → 2 H<sub>2</sub>O</div></div>
+    <div class="step"><h4>Stap 2 · Hoeveelheden</h4>
+      <div class="eq">n(H<sub>3</sub>O<sup>+</sup>) = ${S.A.z > 1 ? S.A.z + ' · ' : ''}${fmt(S.ca)} · ${fmt(S.va / 1000)} = ${fmt(nH)} mol</div>
+      <div class="eq">n(OH<sup>−</sup>) = ${S.B.z > 1 ? S.B.z + ' · ' : ''}${fmt(S.cb)} · ${fmt(S.vb / 1000)} = ${fmt(nOH)} mol</div></div>
+    <div class="step"><h4>Stap 3 · Overschot en totaal volume</h4><div class="eq">V<sub>totaal</sub> = ${fix(S.va, 1)} + ${fix(S.vb, 1)} = ${fix(S.va + S.vb, 1)} ml</div>${res}</div>
+    </div></div><div class="result"><div class="big"><div class="lab">pH mengsel</div><div class="val">${fix(pH, 2)}</div></div></div>
+    <div class="scale"><div class="mark" style="left:${Math.max(0, Math.min(100, pH / 14 * 100))}%"></div></div><div class="scale-l"><span>0</span><span>7</span><span>14</span></div>`;
+}
+/* Generator */
+let gseed = KL.newSeed(), glist = [];
+function gen() {
+  const r = KL.rng(gseed), n = +$('gn').value, t = $('gt').value; glist = [];
+  for (let i = 0; i < n; i++) {
+    const kind = t === 'mix' ? (r() < .5 ? 'vol' : 'mix2') : t;
+    const A = kind === 'mix2' ? KL.pick(r, ACIDS.filter(a => a.strong)) : KL.pick(r, ACIDS), B = kind === 'mix2' ? KL.pick(r, BASES.filter(b => b.strong)) : KL.pick(r, BASES);
+    const S = { A, B, ca: KL.pick(r, [0.0500, 0.100, 0.150, 0.200, 0.250]), va: KL.pick(r, [10.0, 20.0, 25.0, 50.0]), cb: KL.pick(r, [0.0500, 0.100, 0.200, 0.500]), vb: KL.pick(r, [5.0, 10.0, 15.0, 20.0, 25.0, 30.0]) };
+    let q, ans;
+    if (kind === 'vol') {
+      const E = equation(A, B), vb = S.ca * S.va / 1000 * E.xb / E.xa / S.cb * 1000;
+      q = `Hoeveel ml ${fmt(S.cb)} mol/l ${B.name} (${chem(B.f)}) heb je nodig om ${fix(S.va, 1)} ml ${fmt(S.ca)} mol/l ${A.name} (${chem(A.f)}) volledig te neutraliseren? Geef ook de reactievergelijking.`;
+      ans = `${E.txt}<br><b>V = ${fix(vb, 2)} ml</b>`; S.kind = 'vol';
+    } else {
+      const nH = S.ca * S.va / 1000 * A.z, nOH = S.cb * S.vb / 1000 * B.z, V = (S.va + S.vb) / 1000, d = nH - nOH;
+      const pH = Math.abs(d) < 1e-12 ? 7 : d > 0 ? -Math.log10(d / V) : 14 + Math.log10(-d / V);
+      q = `Je mengt ${fix(S.va, 1)} ml ${fmt(S.ca)} mol/l ${chem(A.f)} met ${fix(S.vb, 1)} ml ${fmt(S.cb)} mol/l ${chem(B.f)}. Bereken de pH van het mengsel.`;
+      ans = `<b>pH = ${fix(pH, 2)}</b>`; S.kind = 'mix2';
+    }
+    glist.push({ S, q, ans });
+  }
+  $('glist').innerHTML = `<h2>Reeks #${gseed}</h2>` + glist.map((g, i) => `<div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px"><b>${i + 1}.</b> ${g.q}<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--accent);font-weight:600">Oplossing</summary>${g.S.kind === 'vol' ? volSolution(g.S) : mixSolution(g.S)}</details></div>`).join('');
+}
+$('ggo').onclick = () => { gseed = KL.newSeed(); gen(); };
+['gn', 'gt'].forEach(id => $(id).onchange = gen);
+$('gws').onclick = () => KL.printDoc('Oefeningen neutralisatie', KL.worksheetHead('Oefeningen neutralisatie', `Reeks #${gseed}`) + glist.map((g, i) => `<div class="ws-q"><b>${i + 1}.</b> ${g.q}<div class="ws-lines"></div><div class="ws-lines"></div><div class="ws-lines"></div></div>`).join(''));
+$('gkey').onclick = () => KL.printDoc('Sleutel neutralisatie', KL.worksheetHead('Verbetersleutel neutralisatie', `Reeks #${gseed}`) + glist.map((g, i) => `<div class="ws-q"><b>${i + 1}.</b> ${g.q}<p>${g.ans}</p>${g.S.kind === 'vol' ? volSolution(g.S) : mixSolution(g.S)}</div>`).join(''));
+
+$('variant').onclick = () => {
+  const r = KL.rng(KL.newSeed());
+  $('acid').value = Math.floor(r() * ACIDS.length); $('base').value = Math.floor(r() * BASES.length);
+  $('ca').value = fmt(KL.pick(r, [0.0500, 0.100, 0.150, 0.200]), 3); $('va').value = fix(KL.pick(r, [10, 20, 25, 50]), 1);
+  $('cb').value = fmt(KL.pick(r, [0.0500, 0.100, 0.200, 0.500]), 3); $('vb').value = fix(KL.pick(r, [5, 10, 15, 20, 25]), 1); run();
+};
+['acid', 'base', 'ca', 'va', 'cb', 'vb'].forEach(id => $(id).addEventListener('input', run));
+KL.tabs(id => { tab = id; if (id === 't3' && !glist.length) gen(); run(); });
+KL.toolbar({ share: () => ({ tab, acid: $('acid').value, base: $('base').value, ca: $('ca').value, va: $('va').value, cb: $('cb').value, vb: $('vb').value }) });
+const p = KL.readHash();
+['acid', 'base', 'ca', 'va', 'cb', 'vb'].forEach(k => p[k] && ($(k).value = p[k]));
+run();
+if (p.tab) document.querySelector(`[data-tab="${p.tab}"]`).click();
+</script>
+</body>
+</html>

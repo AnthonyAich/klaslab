@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Indicatoren · Klaslab</title>
+<link rel="stylesheet" href="../assets/common.css">
+<link rel="stylesheet" href="../assets/personal.css">
+<script src="../assets/config.js"></script>
+<script src="../assets/profile.js"></script>
+<style>
+  .tubes{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:14px;margin-top:16px}
+  .tube{text-align:center;font-size:.82rem}
+  .tube .glass{width:44px;height:130px;margin:0 auto 6px;border:3px solid #94a3b8;border-top:0;border-radius:0 0 22px 22px;position:relative;overflow:hidden;background:#fff}
+  .tube .liq{position:absolute;left:0;right:0;bottom:0;height:72%;transition:background .25s}
+  .tube b{display:block}
+  .bar{height:26px;border-radius:6px;margin:4px 0;position:relative}
+  .bar span{position:absolute;top:4px;font-size:.75rem;color:#1b2130}
+  .bigph{font-size:2.6rem;font-weight:800;text-align:center}
+  .puz{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff}
+  .sw{display:inline-block;width:16px;height:16px;border-radius:4px;vertical-align:-3px;border:1px solid #0002;margin-right:4px}
+</style>
+</head>
+<body>
+<main>
+  <div id="kl-top"></div>
+  <h1>Indicatoren</h1>
+  <p class="sub">Zie welke kleur elke indicator heeft bij een bepaalde pH, en maak puzzels waarbij leerlingen uit kleuren het pH gebied afleiden.</p>
+  <div class="tabs no-print"><button data-tab="t1" class="on">Kleuren bij een pH</button><button data-tab="t2">pH puzzels</button><button data-tab="t3">Overzicht</button></div>
+
+  <div id="t1">
+    <section class="card">
+      <div class="bigph">pH <span id="phv">7,0</span></div>
+      <input type="range" id="ph" min="0" max="14" step="0.1" value="7" class="no-print">
+      <div class="checks no-print" id="pick" style="display:flex;gap:12px;flex-wrap:wrap;margin-top:12px"></div>
+      <div class="tubes" id="tubes"></div>
+    </section>
+  </div>
+
+  <div id="t2" class="hidden">
+    <section class="card no-print">
+      <h2>pH puzzels</h2>
+      <p class="hint" style="margin:0 0 10px">Een oplossing wordt getest met enkele indicatoren. Uit de kleuren leiden leerlingen af tussen welke pH waarden de oplossing ligt.</p>
+      <div class="grid"><div><label for="pn">Aantal puzzels</label><select id="pn"><option>3</option><option selected>5</option><option>8</option></select></div>
+        <div><label for="pk">Indicatoren per puzzel</label><select id="pk"><option>2</option><option selected>3</option><option>4</option></select></div></div>
+      <div class="btns"><button class="btn pri" id="pgo">🎲 Nieuwe puzzels</button><button class="btn" id="pws">🖨 Werkblad en sleutel</button></div>
+    </section>
+    <section class="card"><div id="puz"></div></section>
+  </div>
+
+  <div id="t3" class="hidden">
+    <section class="card"><h2>Omslaggebieden</h2><p class="hint" style="margin:0 0 10px">Waarden uit standaardtabellen; je handboek kan licht afwijken.</p><div id="over"></div></section>
+  </div>
+  <footer>Klaslab</footer>
+</main>
+<script src="../assets/qrcode.js"></script>
+<script src="../assets/common.js"></script>
+<script src="../assets/indicators.js"></script>
+<script>
+const { fix } = KL;
+const $ = id => document.getElementById(id);
+const IND = window.INDICATORS;
+let chosen = new Set(IND.map((_, i) => i));
+$('pick').innerHTML = IND.map((I, i) => `<label style="font-weight:500;display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" data-i="${i}" checked> ${I.n}</label>`).join('');
+$('pick').querySelectorAll('input').forEach(c => c.onchange = () => { c.checked ? chosen.add(+c.dataset.i) : chosen.delete(+c.dataset.i); t1(); });
+function t1() {
+  const pH = +$('ph').value; $('phv').textContent = fix(pH, 1);
+  $('tubes').innerHTML = IND.map((I, i) => !chosen.has(i) ? '' : `<div class="tube"><div class="glass"><div class="liq" style="background:${indColor(I, pH)}"></div></div><b>${I.n}</b>${indName(I, pH)}</div>`).join('');
+}
+$('ph').oninput = t1;
+
+/* Puzzels */
+let puzzles = [], pseed = KL.newSeed();
+function makePuzzles() {
+  const r = KL.rng(pseed), n = +$('pn').value, k = +$('pk').value;
+  puzzles = [];
+  for (let t = 0; puzzles.length < n && t < 500; t++) {
+    const pH = Math.round((1 + r() * 11) * 10) / 10;
+    const set = KL.shuffle(r, IND.map((_, i) => i)).slice(0, k).sort((a, b) => IND[a].lo - IND[b].lo);
+    const obs = set.map(i => ({ i, pH: pH, name: indName(IND[i], pH), col: indColor(IND[i], pH) }));
+    let lo = 0, hi = 14;
+    obs.forEach(o => { const I = IND[o.i]; if (pH <= I.lo) hi = Math.min(hi, I.lo); else if (pH >= I.hi) lo = Math.max(lo, I.hi); else { lo = Math.max(lo, I.lo); hi = Math.min(hi, I.hi); } });
+    if (hi - lo > 6) continue; // te weinig informatie
+    puzzles.push({ obs, lo, hi, pH });
+  }
+  render();
+}
+function render() {
+  $('puz').innerHTML = `<h2>Reeks #${pseed}</h2>` + puzzles.map((p, j) => `<div class="puz"><b>${j + 1}.</b> Een oplossing kleurt:
+    <ul style="margin:6px 0">${p.obs.map(o => `<li><span class="sw" style="background:${o.col}"></span>${IND[o.i].n}: <b>${o.name}</b></li>`).join('')}</ul>
+    <details><summary style="cursor:pointer;color:var(--accent);font-weight:600">Oplossing</summary>
+      <p style="margin:6px 0">De pH ligt tussen <b>${fix(p.lo, 1)}</b> en <b>${fix(p.hi, 1)}</b>.</p>
+      <ul class="hint" style="margin:0">${p.obs.map(o => { const I = IND[o.i]; return `<li>${I.n}: ${o.pH <= I.lo ? `${I.na} ⇒ pH ≤ ${fix(I.lo, 1)}` : o.pH >= I.hi ? `${I.nb} ⇒ pH ≥ ${fix(I.hi, 1)}` : `mengkleur ⇒ pH tussen ${fix(I.lo, 1)} en ${fix(I.hi, 1)}`}</li>`; }).join('')}</ul></details></div>`).join('');
+}
+$('pgo').onclick = () => { pseed = KL.newSeed(); makePuzzles(); };
+['pn', 'pk'].forEach(id => $(id).onchange = makePuzzles);
+$('pws').onclick = () => {
+  const table = `<table class="list"><tr><th>Indicator</th><th>Omslaggebied</th><th>Kleur</th></tr>${IND.map(I => `<tr><td>${I.n}</td><td>${fix(I.lo, 1)} tot ${fix(I.hi, 1)}</td><td>${I.na} → ${I.nb}</td></tr>`).join('')}</table>`;
+  let h = KL.worksheetHead('pH puzzels met indicatoren', `Reeks #${pseed}`) + table + '<h3>Opdrachten</h3>' + puzzles.map((p, j) => `<div class="ws-q"><b>${j + 1}.</b> Een oplossing kleurt: ${p.obs.map(o => `${IND[o.i].n} <b>${o.name}</b>`).join(', ')}. Tussen welke pH waarden ligt de oplossing?<div class="ws-lines"></div></div>`).join('');
+  h += `<div style="break-before:page"></div><h2>Verbetersleutel</h2>` + puzzles.map((p, j) => `<p><b>${j + 1}.</b> pH tussen ${fix(p.lo, 1)} en ${fix(p.hi, 1)}</p>`).join('');
+  KL.printDoc('pH puzzels', h);
+};
+
+/* Overzicht */
+$('over').innerHTML = IND.map(I => `<div style="margin-bottom:8px"><b style="font-size:.88rem">${I.n}</b>
+  <div class="bar" style="background:linear-gradient(90deg, ${I.ca} 0%, ${I.ca} ${I.lo / 14 * 100}%, ${I.cb} ${I.hi / 14 * 100}%, ${I.cb} 100%);border:1px solid #0001">
+  <span style="left:${I.lo / 14 * 100}%;transform:translateX(-50%)">${fix(I.lo, 1)}</span><span style="left:${I.hi / 14 * 100}%;transform:translateX(-50%)">${fix(I.hi, 1)}</span></div></div>`).join('') +
+  `<div class="scale-l"><span>pH 0</span><span>7</span><span>14</span></div>`;
+
+const show = KL.tabs(id => { if (id === 't2' && !puzzles.length) makePuzzles(); });
+KL.toolbar({ share: () => ({ ph: $('ph').value }), proj: true });
+const p = KL.readHash(); if (p.ph) $('ph').value = p.ph;
+t1();
+</script>
+</body>
+</html>

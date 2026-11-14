@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pH rekenaar · Klaslab</title>
+<link rel="stylesheet" href="../assets/common.css">
+<link rel="stylesheet" href="../assets/personal.css">
+<script src="../assets/config.js"></script>
+<script src="../assets/profile.js"></script>
+<style>
+  .ex-item{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff}
+  .ex-item .n{font-weight:800;color:var(--accent);margin-right:6px}
+  .ex-item details{margin-top:8px}
+  .ex-item summary{cursor:pointer;font-weight:600;color:var(--accent);font-size:.9rem}
+  .mini{font-size:.8rem;padding:4px 9px}
+  .opt{display:flex;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin:6px 0;background:#fff}
+  .opt.ok{border-color:var(--ok);background:#f2fbf5}
+  .opt b{min-width:20px}
+  .checks{display:flex;gap:14px;flex-wrap:wrap}
+  .checks label{font-weight:500;display:flex;gap:6px;align-items:center;margin:0}
+  .quiz-salt{font-size:2rem;font-weight:800;text-align:center;margin:10px 0 2px}
+  .quiz-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:14px 0}
+  .quiz-btns button{font:inherit;font-weight:700;font-size:1.05rem;padding:12px 22px;border-radius:10px;border:0;color:#fff;cursor:pointer}
+  canvas{width:100%;height:auto;display:block;border-radius:10px;background:#fbfcfd;border:1px solid var(--line)}
+  .stud-q{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;background:#fff}
+  .stud-q .row input{max-width:140px}
+  .fb{margin-top:8px}
+  .pts input{max-width:70px}
+  .pts select{max-width:220px}
+  body.proj .tabs,body.proj #t1 .card:first-child{display:none}
+</style>
+</head>
+<body>
+<main>
+  <div id="kl-top"></div>
+
+  <!-- ================= LEERLINGENWEERGAVE ================= -->
+  <div id="studentView" class="hidden">
+    <h1>Oefeningen pH</h1>
+    <p class="sub">Los elke oefening op en vul je pH in. Je krijgt meteen feedback. Rond af zoals in de les.</p>
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><b>Score:</b> <span id="sScore">0</span> / <span id="sTotal">0</span></div>
+      <div class="hint" style="margin:0">Oefenreeks <span id="sSeed"></span></div>
+    </div>
+    <div id="sList"></div>
+  </div>
+
+  <!-- ================= LEERKRACHTWEERGAVE ================= -->
+  <div id="teacherView">
+  <h1>pH rekenaar</h1>
+  <p class="sub">Uitwerken, oefeningen maken, meerkeuzevragen opstellen en verbeteren. Volgens het stappenplan uit de les.</p>
+
+  <div class="tabs no-print">
+    <button data-tab="t1" class="on">Berekenen</button>
+    <button data-tab="t2">Oefeningen maken</button>
+    <button data-tab="t3">Meerkeuzevraag</button>
+    <button data-tab="t4">Verbeteren</button>
+    <button data-tab="t5">Zouten</button>
+    <button data-tab="t6">Visueel</button>
+    <button data-tab="t7">K<sub>z</sub> ↔ K<sub>b</sub></button>
+  </div>
+
+  <!-- ===== TAB 1: BEREKENEN ===== -->
+  <div id="t1">
+    <section class="card no-print">
+      <h2>Gegevens</h2>
+      <div id="loadedBox" class="msg info hidden" style="margin:0 0 14px"></div>
+      <div class="grid">
+        <div><label for="kind">Soort deeltje</label>
+          <select id="kind"><option value="zz">Zwak zuur</option><option value="zb">Zwakke base</option><option value="sz">Sterk zuur</option><option value="sb">Sterke base</option></select></div>
+        <div><label for="conc">Beginconcentratie (mol/l)</label><input id="conc" inputmode="decimal" placeholder="bv. 0,100"></div>
+        <div id="kBox"><label for="kval" id="kLab">K<sub>z</sub> van het zuur</label><input id="kval" inputmode="decimal" placeholder="bv. 1,74·10^-5"></div>
+        <div id="nBox" class="hidden"><label for="nval">Aantal H<sub>3</sub>O<sup>+</sup> of OH<sup>−</sup> per deeltje</label><select id="nval"><option>1</option><option>2</option><option>3</option></select></div>
+      </div>
+      <div class="grid" style="margin-top:14px">
+        <div><label for="zName">Zuur (Z), optioneel</label><input id="zName" placeholder="bv. CH3COOH"></div>
+        <div><label for="bName">Geconjugeerde base (B), optioneel</label><input id="bName" placeholder="bv. CH3COO-"></div>
+        <div><label for="dec">pH afronden op</label><select id="dec"><option value="1">1 decimaal</option><option value="2" selected>2 decimalen</option><option value="3">3 decimalen</option></select></div>
+      </div>
+      <div class="checks" style="margin-top:12px" id="conjBox"><label><input type="checkbox" id="conj"> De gegeven K hoort bij het geconjugeerde deeltje (eerst omrekenen met K<sub>w</sub>)</label></div>
+      <p class="hint">Getallen met komma of punt: <b>0,100</b>, <b>1,74·10^-5</b>, <b>1.74e-5</b>. Formules: CH3COOH, NH4+, CO3^2-.</p>
+      <div class="btns">
+        <button class="btn" data-ex="ac">Voorbeeld: azijnzuur</button>
+        <button class="btn" data-ex="cn">Voorbeeld: cyanide</button>
+        <button class="btn" data-ex="ba">Voorbeeld: Ba(OH)<sub>2</sub></button>
+        <button class="btn pri" id="variantBtn">🎲 Variant met andere getallen</button>
+      </div>
+      <div id="m1"></div>
+    </section>
+    <section class="card hidden" id="out1Card">
+      <div id="q1" style="font-weight:600;margin-bottom:12px"></div>
+      <div id="out1"></div>
+      <div id="sig1"></div>
+      <div class="btns no-print no-proj">
+        <button class="btn" data-go="t3">Maak hier een meerkeuzevraag van</button>
+        <button class="btn" data-go="t4">Verbeter een leerlingantwoord</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- ===== TAB 2: OEFENINGEN ===== -->
+  <div id="t2" class="hidden">
+    <section class="card no-print">
+      <h2>Oefeningengenerator</h2>
+      <label>Soorten</label>
+      <div class="checks" id="gTypes">
+        <label><input type="checkbox" value="sz" checked> sterk zuur</label>
+        <label><input type="checkbox" value="sb" checked> sterke base</label>
+        <label><input type="checkbox" value="zz" checked> zwak zuur</label>
+        <label><input type="checkbox" value="zb" checked> zwakke base</label>
+        <label><input type="checkbox" value="zout" checked> zout</label>
+      </div>
+      <div class="grid" style="margin-top:14px">
+        <div><label for="gN">Aantal oefeningen</label><select id="gN"><option>4</option><option>6</option><option selected>8</option><option>10</option><option>15</option><option>20</option></select></div>
+        <div><label for="gRule">Regel van 1000 (zwakke deeltjes)</label><select id="gRule"><option value="mix">gemengd</option><option value="ja">vereenvoudigen mag altijd</option><option value="nee">altijd vierkantsvergelijking</option></select></div>
+        <div><label for="gDec">pH in sleutel afronden op</label><select id="gDec"><option value="1">1 decimaal</option><option value="2" selected>2 decimalen</option></select></div>
+      </div>
+      <div class="checks" style="margin-top:12px"><label><input type="checkbox" id="gConj"> Soms de K van het geconjugeerde deeltje geven (leerlingen moeten omrekenen)</label></div>
+      <div class="btns">
+        <button class="btn pri" id="gGo">🎲 Genereer reeks</button>
+        <button class="btn" id="gWs">🖨 Werkblad</button>
+        <button class="btn" id="gKey">🖨 Verbetersleutel</button>
+        <button class="btn" id="gStud">📱 Deel met leerlingen</button>
+      </div>
+      <p class="hint">Elke reeks heeft een nummer. Met dezelfde instellingen en hetzelfde nummer krijg je exact dezelfde oefeningen, ook bij je leerlingen. Zo kan je een groep A en een groep B maken.</p>
+    </section>
+    <section class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Reeks <span id="gSeedLab"></span></h2></div><div id="gList" style="margin-top:12px"></div></section>
+  </div>
+
+  <!-- ===== TAB 3: MEERKEUZE ===== -->
+  <div id="t3" class="hidden">
+    <section class="card">
+      <h2>Meerkeuzevraag uit denkfouten</h2>
+      <p class="hint no-print" style="margin:0 0 12px">De vraag komt uit het tabblad Berekenen (of uit een gegenereerde oefening). De foute opties zijn antwoorden die leerlingen echt uitkomen met een typische denkfout.</p>
+      <div id="mcBox"></div>
+      <div class="btns no-print">
+        <button class="btn pri" id="mcShuffle">🔀 Andere schikking</button>
+        <button class="btn" id="mcPrint">🖨 Vraag en sleutel afdrukken</button>
+        <button class="btn" id="mcCopy">📋 Kopieer als tekst</button>
+      </div>
+    </section>
+    <section class="card no-print">
+      <h2>Alle denkfouten bij deze vraag</h2>
+      <div class="scroll"><table class="list" id="mcAll"></table></div>
+    </section>
+    <section class="card no-print">
+      <h2>Controleer je eigen antwoordopties</h2>
+      <p class="hint" style="margin:0 0 10px">Vul de pH waarden van je eigen opties in. De tool zegt welke denkfout erbij hoort en of opties te dicht bij elkaar liggen.</p>
+      <div class="grid"><div><label>A</label><input class="own" inputmode="decimal"></div><div><label>B</label><input class="own" inputmode="decimal"></div><div><label>C</label><input class="own" inputmode="decimal"></div><div><label>D</label><input class="own" inputmode="decimal"></div></div>
+      <div id="ownOut"></div>
+    </section>
+  </div>
+
+  <!-- ===== TAB 4: VERBETEREN ===== -->
+  <div id="t4" class="hidden">
+    <section class="card">
+      <h2>Foutdiagnose</h2>
+      <div id="vQ" style="font-weight:600;margin-bottom:10px"></div>
+      <div class="grid"><div><label for="vAns">Antwoord van de leerling (pH)</label><input id="vAns" inputmode="decimal" placeholder="bv. 4,76"></div></div>
+      <div id="vOut"></div>
+    </section>
+    <section class="card">
+      <h2>Puntenverdeling per stap</h2>
+      <p class="hint" style="margin:0 0 10px">Een <b>volgfout</b> is een stap die juist verder rekent met een eerder fout resultaat. Die krijgt de volle punten, zodat een leerling niet twee keer gestraft wordt voor dezelfde fout.</p>
+      <div class="scroll"><table class="list pts" id="ptsTable"></table></div>
+      <div class="btns no-print"><button class="btn" id="ptsAuto">Invullen op basis van de diagnose</button><button class="btn" id="ptsCopy">📋 Kopieer feedback</button></div>
+      <div id="ptsOut"></div>
+    </section>
+  </div>
+
+  <!-- ===== TAB 5: ZOUTEN ===== -->
+  <div id="t5" class="hidden">
+    <section class="card no-print">
+      <h2>Zout kiezen</h2>
+      <div class="grid">
+        <div><label for="cat">Positief ion</label><select id="cat"></select></div>
+        <div><label for="an">Negatief ion</label><select id="an"></select></div>
+        <div><label for="sconc">Concentratie zout (mol/l), optioneel</label><input id="sconc" inputmode="decimal" placeholder="bv. 0,100"></div>
+      </div>
+      <div id="kEdit" class="grid" style="margin-top:14px"></div>
+      <p class="hint">K waarden bij 25 °C. Ze kunnen licht verschillen van je handboek; pas ze gerust aan.</p>
+    </section>
+    <section class="card"><div id="out5"></div></section>
+    <section class="card">
+      <h2>Zout raden <span class="hint">· klasspel</span></h2>
+      <p class="hint" style="margin:0">Projecteer het zout, laat de klas stemmen en toon dan de uitleg.</p>
+      <div id="quiz"></div>
+    </section>
+  </div>
+
+  <!-- ===== TAB 6: VISUEEL ===== -->
+  <div id="t6" class="hidden">
+    <section class="card">
+      <h2>Sterk en zwak zuur in het bekerglas</h2>
+      <div class="grid no-print">
+        <div><label>Concentratie: <span id="vcLab"></span> mol/l</label><input type="range" id="vc" min="-5" max="-0.5" step="0.1" value="-1"></div>
+        <div><label>K<sub>z</sub> van het zwakke zuur: <span id="vkLab"></span></label><input type="range" id="vk" min="-10" max="-1" step="0.1" value="-4.74"></div>
+      </div>
+      <canvas id="beaker" width="960" height="420" style="margin-top:14px"></canvas>
+      <div id="beakerInfo"></div>
+    </section>
+    <section class="card">
+      <h2>Wat doet verdunnen met de pH?</h2>
+      <p class="hint" style="margin:0 0 8px">Exacte pH, met de protolyse van water erbij. Een sterk zuur stijgt 1 pH eenheid per 10 keer verdunnen, een zwak zuur ongeveer 0,5. Geen enkel zuur wordt basisch door te verdunnen.</p>
+      <div id="dilChart"></div>
+      <div class="scroll"><table class="list" id="dilTable" style="margin-top:10px"></table></div>
+    </section>
+  </div>
+
+  <!-- ===== TAB 7: OMREKENEN ===== -->
+  <div id="t7" class="hidden">
+    <section class="card">
+      <h2>K<sub>z</sub>, K<sub>b</sub>, pK<sub>z</sub> en pK<sub>b</sub></h2>
+      <div class="grid">
+        <div><label for="cvWhat">Ik ken</label><select id="cvWhat"><option value="kz">Kz van het zuur</option><option value="kb">Kb van de base</option><option value="pkz">pKz</option><option value="pkb">pKb</option></select></div>
+        <div><label for="cvVal">Waarde</label><input id="cvVal" inputmode="decimal" placeholder="bv. 6,2·10^-10"></div>
+      </div>
+      <p class="hint">Voor een geconjugeerd zuur basepaar geldt K<sub>z</sub> · K<sub>b</sub> = K<sub>w</sub> = 1,00 · 10<sup>−14</sup> (25 °C), dus pK<sub>z</sub> + pK<sub>b</sub> = 14.</p>
+      <div id="out7"></div>
+    </section>
+    <section class="card">
+      <h2>Tabel met K waarden</h2>
+      <p class="hint" style="margin:0 0 8px">Waarden bij 25 °C uit standaardtabellen. Je handboek kan licht afwijken.</p>
+      <div class="scroll"><table class="list" id="ktable"></table></div>
+    </section>
+  </div>
+  </div>
+
+  <footer>Klaslab · alles draait in je browser · 25 °C, K<sub>w</sub> = 1,00 · 10<sup>−14</sup></footer>
+</main>
+
+<script src="../assets/qrcode.js"></script>
+<script src="../assets/common.js"></script>
+<script src="../assets/ph-core.js"></script>
+<script>
+const { fmt, fix, chem, parseNum, KW, H3O, OH } = KL;
+const $ = id => document.getElementById(id);
+let curTab = 't1';
+let loadedEx = null;   // oefening uit generator of zouten
+let curEx = null;      // huidige oefening (voor meerkeuze en verbeteren)
+
+/* ---------------- Tab 1 ---------------- */
+function exFromForm() {
+  const kind = $('kind').value, weak = kind[0] === 'z', acid = kind[1] === 'z';
+  const c = parseNum($('conc').value), Kin = parseNum($('kval').value), conj = weak && $('conj').checked;
+  const err = [];
+  if ($('conc').value && !(c > 0)) err.push('De concentratie is geen geldig positief getal.');
+  if (weak && $('kval').value && !(Kin > 0)) err.push('De K waarde is geen geldig positief getal.');
+  if (weak && !conj && Kin >= 1) err.push('Een K waarde van 1 of meer hoort bij een sterk zuur of een sterke base.');
+  if (!(c > 0) || (weak && !(Kin > 0)) || err.length) return { err };
+  const ex = { kind, c, cStr: $('conc').value.trim(), K: conj ? KW / Kin : Kin, KStr: $('kval').value.trim(), n: +$('nval').value,
+    Z: $('zName').value.trim() || null, B: $('bName').value.trim() || null };
+  if (conj) { ex.conj = true; ex.Kgiven = Kin; }
+  ex.name = 'het ' + (acid ? 'zuur' : 'base');
+  return { ex, err };
+}
+function questionFor(ex) {
+  if (ex.q) return ex.q;
+  const acid = PH.isAcid(ex), weak = PH.isWeak(ex);
+  const f = acid ? (ex.Z ? chem(ex.Z) : '') : (ex.B ? chem(ex.B) : '');
+  const soort = weak ? (acid ? 'zwak zuur' : 'zwakke base') : (acid ? 'sterk zuur' : 'sterke base');
+  let q = `Bereken de pH van een oplossing van ${ex.cStr || fmt(ex.c)} mol/l ${f || 'van een ' + soort}${f ? ` (${soort})` : ''}.`;
+  if (weak) q += ex.conj ? ` Gegeven: K${acid ? '<sub>b</sub>' : '<sub>z</sub>'}${acid ? (ex.B ? `(${chem(ex.B)})` : '') : (ex.Z ? `(${chem(ex.Z)})` : '')} = ${fmt(ex.Kgiven)}.`
+                         : ` Gegeven: K${acid ? '<sub>z</sub>' : '<sub>b</sub>'}${f ? `(${f})` : ''} = ${fmt(ex.K)}.`;
+  return q;
+}
+function run1() {
+  const kind = $('kind').value, weak = kind[0] === 'z', acid = kind[1] === 'z';
+  $('kBox').classList.toggle('hidden', !weak);
+  $('conjBox').classList.toggle('hidden', !weak);
+  $('nBox').classList.toggle('hidden', weak);
+  $('kLab').innerHTML = $('conj').checked ? (acid ? 'K<sub>b</sub> van de geconjugeerde base' : 'K<sub>z</sub> van het geconjugeerde zuur') : (acid ? 'K<sub>z</sub> van het zuur' : 'K<sub>b</sub> van de base');
+  let ex;
+  if (loadedEx) { ex = loadedEx; $('m1').innerHTML = ''; }
+  else {
+    const r = exFromForm();
+    $('m1').innerHTML = r.err.map(e => `<div class="msg err">${e}</div>`).join('');
+    ex = r.ex;
+  }
+  if (!ex) { $('out1Card').classList.add('hidden'); curEx = null; refreshDependents(); return; }
+  curEx = ex;
+  const dec = +$('dec').value;
+  $('q1').innerHTML = questionFor(ex);
+  $('out1').innerHTML = PH.solve(ex, { dec });
+  const exp = PH.expectedDecimals(ex);
+  $('sig1').innerHTML = exp && exp !== dec && exp <= 4
+    ? `<div class="msg note no-proj">Beduidende cijfers: de gegevens hebben ${exp} beduidende cijfer${exp > 1 ? 's' : ''}, dus de pH krijgt ${exp} decimale${exp > 1 ? 'n' : ''}. <button class="btn mini" id="decFix">Afronden op ${exp}</button></div>`
+    : (exp ? `<div class="msg ok no-proj">Beduidende cijfers: ${exp} in de gegevens, dus ${exp} decimale${exp > 1 ? 'n' : ''} in de pH. ✓</div>` : '');
+  const df = $('decFix'); if (df) df.onclick = () => { $('dec').value = Math.min(3, exp); run1(); };
+  $('out1Card').classList.remove('hidden');
+  refreshDependents();
+}
+function loadEx(ex, note) {
+  loadedEx = ex;
+  $('loadedBox').innerHTML = `${note || 'Oefening geladen'}: ${ex.q || ''} <button class="btn mini" id="unload" style="margin-left:6px">Terug naar eigen invoer</button>`;
+  $('loadedBox').classList.remove('hidden');
+  $('unload').onclick = () => { loadedEx = null; $('loadedBox').classList.add('hidden'); run1(); };
+  run1();
+}
+const EX = {
+  ac: { kind: 'zz', conc: '0,100', kval: '1,74·10^-5', zName: 'CH3COOH', bName: 'CH3COO-' },
+  cn: { kind: 'zb', conc: '0,00100', kval: '2,00·10^-5', zName: 'HCN', bName: 'CN-' },
+  ba: { kind: 'sb', conc: '0,0100', kval: '', zName: '', bName: 'Ba(OH)2', nval: '2' },
+};
+function setForm(o) { loadedEx = null; $('loadedBox').classList.add('hidden'); $('conj').checked = !!o.conj; Object.keys(o).forEach(k => { if ($(k) && k !== 'conj') $(k).value = o[k]; }); run1(); }
+function variant() {
+  const r = KL.rng(KL.newSeed());
+  if (loadedEx) {
+    const ex = PH.generate(r, { types: [loadedEx.type || (loadedEx.salt ? 'zout' : loadedEx.kind)], rule: 'mix', conj: !!loadedEx.conj });
+    if (ex) loadEx(ex, 'Variant');
+    return;
+  }
+  const res = exFromForm(); if (!res.ex) return;
+  const ex = res.ex, weak = PH.isWeak(ex), wantOk = weak ? ex.c / ex.K >= 1000 : null;
+  const M = [1.00, 1.50, 2.00, 2.50, 3.00, 4.00, 5.00, 6.00, 7.50, 8.00];
+  for (let i = 0; i < 300; i++) {
+    const e = Math.floor(Math.log10(ex.c)) + (r() < .5 ? 0 : (r() < .5 ? -1 : 1));
+    const c = KL.pick(r, M) * Math.pow(10, Math.min(-1, e));
+    if (Math.abs(c - ex.c) / ex.c < 0.01) continue;
+    if (weak && (c / ex.K >= 1000) !== wantOk) continue;
+    $('conc').value = KL.fmtIn(c, 3);
+    run1(); return;
+  }
+}
+
+/* ---------------- Tab 2: generator ---------------- */
+let gSeed = KL.newSeed(), gEx = [];
+function gOpts() {
+  return { types: [...document.querySelectorAll('#gTypes input:checked')].map(i => i.value), rule: $('gRule').value, conj: $('gConj').checked, n: +$('gN').value };
+}
+function genList(seed, o) {
+  const r = KL.rng(seed), L = [];
+  const seen = new Set();
+  for (let i = 0, t = 0; L.length < o.n && t < o.n * 20; t++) { const ex = PH.generate(r, o); if (ex && !seen.has(ex.q)) { seen.add(ex.q); L.push(ex); } }
+  return L;
+}
+function run2() {
+  const o = gOpts();
+  if (!o.types.length) { $('gList').innerHTML = '<div class="msg err">Kies minstens één soort.</div>'; return; }
+  gEx = genList(gSeed, o);
+  const dec = +$('gDec').value;
+  $('gSeedLab').textContent = '#' + gSeed;
+  $('gList').innerHTML = gEx.map((ex, i) => `<div class="ex-item"><span class="n">${i + 1}.</span>${ex.q}
+    <div class="row" style="margin-top:6px"><span class="hint" style="margin:0">Antwoord: <b>pH = ${fix(PH.compute(ex).pH, dec)}</b></span>
+      <button class="btn mini" data-load="${i}">Open in Berekenen</button><button class="btn mini" data-mc="${i}">Meerkeuzevraag</button><button class="btn mini" data-corr="${i}">Verbeteren</button></div>
+    <details><summary>Uitwerking</summary>${PH.solve(ex, { dec })}</details></div>`).join('');
+  $('gList').querySelectorAll('[data-load]').forEach(b => b.onclick = () => { loadEx(gEx[+b.dataset.load], `Oefening ${+b.dataset.load + 1}`); showTab('t1'); });
+  $('gList').querySelectorAll('[data-mc]').forEach(b => b.onclick = () => { loadEx(gEx[+b.dataset.mc], `Oefening ${+b.dataset.mc + 1}`); showTab('t3'); });
+  $('gList').querySelectorAll('[data-corr]').forEach(b => b.onclick = () => { loadEx(gEx[+b.dataset.corr], `Oefening ${+b.dataset.corr + 1}`); showTab('t4'); });
+}
+function studentLink() {
+  const o = gOpts();
+  return KL.linkFor({ leerling: 1, seed: gSeed, n: o.n, t: o.types.join('.'), r: o.rule, k: o.conj ? 1 : 0, d: $('gDec').value });
+}
+function printWorksheet(key) {
+  const dec = +$('gDec').value;
+  let h = KL.worksheetHead(key ? 'Verbetersleutel pH' : 'Oefeningen pH', `Reeks #${gSeed} · ${gEx.length} oefeningen`);
+  h += gEx.map((ex, i) => `<div class="ws-q"><b>${i + 1}.</b> ${ex.q}
+    ${key ? `<div style="margin-top:6px"><b>pH = ${fix(PH.compute(ex).pH, dec)}</b></div>${PH.solve(ex, { dec })}` : '<div class="ws-lines"></div><div class="ws-lines"></div><div class="ws-lines"></div><div class="ws-lines"></div><div style="text-align:right;margin-top:6px">pH = ..........</div>'}</div>`).join('');
+  KL.printDoc(key ? 'Verbetersleutel pH' : 'Oefeningen pH', h);
+}
+
+/* ---------------- Leerlingenweergave ---------------- */
+function studentMode(p) {
+  $('teacherView').classList.add('hidden');
+  $('studentView').classList.remove('hidden');
+  document.querySelector('.kl-bar') && (document.querySelector('.kl-bar').style.display = 'none');
+  const o = { n: +p.n || 8, types: (p.t || 'sz.sb.zz.zb.zout').split('.'), rule: p.r || 'mix', conj: p.k === '1' };
+  const dec = +p.d || 2;
+  const L = genList(+p.seed, o);
+  $('sSeed').textContent = '#' + p.seed; $('sTotal').textContent = L.length;
+  const done = new Set();
+  $('sList').innerHTML = L.map((ex, i) => `<div class="stud-q"><b>${i + 1}.</b> ${ex.q}
+    <div class="row" style="margin-top:10px"><span>pH =</span><input data-i="${i}" inputmode="decimal" placeholder="${dec === 1 ? '0,0' : '0,00'}"><button class="btn pri mini" data-c="${i}">Controleer</button><button class="btn mini" data-s="${i}">Toon uitwerking</button></div>
+    <div class="fb" id="fb${i}"></div><div id="so${i}"></div></div>`).join('');
+  const check = i => {
+    const v = $('sList').querySelector(`input[data-i="${i}"]`).value;
+    const d = PH.diagnose(L[i], v);
+    let h;
+    if (!d) h = '<div class="msg err">Vul een getal in.</div>';
+    else if (d.correct) {
+      h = `<div class="msg ok"><b>Juist!</b> pH = ${fix(d.ok.pH, dec)}.${d.d !== d.expected ? ` Let wel op de afronding: met ${d.expected} beduidende cijfers in de gegevens hoort de pH ${d.expected} decimale${d.expected > 1 ? 'n' : ''} te hebben.` : ''}</div>`;
+      if (!done.has(i)) { done.add(i); $('sScore').textContent = done.size; }
+    } else if (d.hits.length) h = `<div class="msg note"><b>Nog niet juist.</b> Tip: ${hintFor(d.hits[0])}</div>`;
+    else h = '<div class="msg note"><b>Nog niet juist.</b> Controleer je berekening stap voor stap.</div>';
+    $('fb' + i).innerHTML = h;
+  };
+  $('sList').querySelectorAll('[data-c]').forEach(b => b.onclick = () => check(+b.dataset.c));
+  $('sList').querySelectorAll('input').forEach(inp => inp.addEventListener('keydown', e => { if (e.key === 'Enter') check(+inp.dataset.i); }));
+  $('sList').querySelectorAll('[data-s]').forEach(b => b.onclick = () => { const i = +b.dataset.s; $('so' + i).innerHTML = PH.solve(L[i], { dec }); });
+}
+function hintFor(h) {
+  const T = {
+    poh: 'je hebt de pOH berekend. Vergeet niet pH = 14 − pOH.',
+    sterk: 'is dit deeltje sterk of zwak? Een zwak deeltje protolyseert maar gedeeltelijk.',
+    verw: 'controleer de regel van 1000. Mag je x hier wel verwaarlozen?',
+    kc: 'kijk nog eens naar stap 3: uit x² = K · c volgt x = √(K · c).',
+    conj: 'de gegeven K hoort bij het geconjugeerde deeltje. Reken eerst om met K<sub>z</sub> · K<sub>b</sub> = K<sub>w</sub>.',
+    kzkb: 'gebruik je wel de juiste K: K<sub>z</sub> of K<sub>b</sub>?',
+    pk: 'pH = pK<sub>z</sub> geldt enkel bij een buffer. Hier moet je het stappenplan volgen.',
+    sterk_poh: 'is dit deeltje sterk of zwak? En vergeet niet pH = 14 − pOH.',
+    verkeerdK: 'reageert dit deeltje als zuur of als base? Bij een base bereken je eerst [OH⁻].',
+    n: 'hoeveel H₃O⁺ of OH⁻ ionen levert één deeltje?',
+    ndiv: 'hoeveel H₃O⁺ of OH⁻ ionen levert één deeltje? Vermenigvuldig met dat aantal.',
+    base: 'is dit een zuur of een base? Bij een zuur is pH = −log[H₃O⁺].',
+    count: 'hoeveel van de reagerende ionen ontstaan per formule eenheid van het zout?',
+    ln: 'gebruik log (grondtal 10), niet ln.',
+    min: 'vergeet het minteken niet: pH = −log[H₃O⁺].',
+  };
+  return T[h.id] || h.desc;
+}
+
+/* ---------------- Tab 3: meerkeuze ---------------- */
+let mcSeed = 1, mc = null;
+function run3() {
+  if (!curEx) { $('mcBox').innerHTML = '<div class="msg note">Vul eerst een oefening in bij Berekenen, of kies er een uit de generator.</div>'; $('mcAll').innerHTML = ''; return; }
+  const dec = +$('dec').value;
+  mc = PH.buildMC(curEx, KL.rng(mcSeed), dec);
+  const q = questionFor(curEx);
+  let h = `<div style="font-weight:600;margin-bottom:8px">${q}</div>`;
+  h += mc.opts.map((o, i) => `<div class="opt"><b>${'ABCD'[i]}.</b><span>pH = ${o.txt}</span></div>`).join('');
+  h += `<h3>Sleutel en verantwoording</h3>`;
+  h += mc.opts.map((o, i) => `<div class="opt ${o.id === 'ok' ? 'ok' : ''}"><b>${'ABCD'[i]}.</b><span>${o.id === 'ok' ? '<b>Juist.</b> ' : '<b>Fout:</b> ' + o.name + '. '}${o.desc}</span></div>`).join('');
+  if (mc.opts.some(o => o.id === 'gok')) h += '<div class="msg note">Er waren te weinig verschillende denkfouten, dus minstens één optie is een opvulantwoord. Pas eventueel de getallen aan.</div>';
+  $('mcBox').innerHTML = h;
+  const r = PH.compute(curEx);
+  $('mcAll').innerHTML = '<tr><th>Denkfout</th><th>pH</th><th>Bruikbaar?</th><th>Uitleg</th></tr>' + mc.all.map(v => {
+    const same = v.id !== 'ok' && Math.abs(v.pH - r.pH) < 0.05;
+    return `<tr><td><b>${v.name}</b></td><td>${fix(v.pH, dec)}</td><td>${v.id === 'ok' ? '<span class="chip c-ok">juist</span>' : same ? '<span class="chip c-warn">valt samen met juist</span>' : v.real ? '<span class="chip c-ok">ja</span>' : '<span class="chip c-bad">pH buiten 0 tot 14</span>'}</td><td>${v.desc}</td></tr>`;
+  }).join('');
+  runOwn();
+}
+function mcText() {
+  const q = KL.stripTags(questionFor(curEx));
+  return `${q}\n\n${mc.opts.map((o, i) => `${'ABCD'[i]}. pH = ${o.txt}`).join('\n')}\n\nSleutel: ${mc.letter}\n\nVerantwoording:\n${mc.opts.map((o, i) => `${'ABCD'[i]}. ${o.id === 'ok' ? 'Juist. ' : 'Fout: ' + KL.stripTags(o.name) + '. '}${KL.stripTags(o.desc)}`).join('\n')}`;
+}
+function runOwn() {
+  if (!curEx) return;
+  const vals = [...document.querySelectorAll('.own')].map(i => i.value.trim());
+  if (!vals.some(Boolean)) { $('ownOut').innerHTML = ''; return; }
+  const V = PH.variants(curEx);
+  const nums = vals.map(v => parseNum(v));
+  let h = '<table class="list" style="margin-top:12px"><tr><th>Optie</th><th>pH</th><th>Herkend als</th></tr>';
+  vals.forEach((v, i) => {
+    if (!v) return;
+    const d = PH.diagnose(curEx, v);
+    const lab = !d ? '<span class="chip c-bad">geen getal</span>' : d.correct ? '<span class="chip c-ok">juist antwoord</span>' : d.hits.length ? d.hits.map(x => x.name).join(' of ') : '<span class="chip c-warn">geen bekende denkfout</span>';
+    h += `<tr><td><b>${'ABCD'[i]}</b></td><td>${v}</td><td>${lab}</td></tr>`;
+  });
+  h += '</table>';
+  const warn = [];
+  const nCorrect = vals.filter(v => v && PH.diagnose(curEx, v)?.correct).length;
+  if (nCorrect === 0) warn.push('Geen enkele optie is het juiste antwoord.');
+  if (nCorrect > 1) warn.push('Meer dan één optie valt samen met het juiste antwoord.');
+  for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) if (isFinite(nums[i]) && isFinite(nums[j]) && Math.abs(nums[i] - nums[j]) < 0.1) warn.push(`Opties ${'ABCD'[i]} en ${'ABCD'[j]} liggen minder dan 0,1 uit elkaar; afrondingsverschillen kunnen voor verwarring zorgen.`);
+  nums.forEach((n, i) => { if (isFinite(n) && (n < 0 || n > 14)) warn.push(`Optie ${'ABCD'[i]} ligt buiten 0 tot 14 en valt meteen af.`); });
+  h += warn.length ? warn.map(w => `<div class="msg note">${w}</div>`).join('') : '<div class="msg ok">Eén juist antwoord en goed gespreide opties. ✓</div>';
+  $('ownOut').innerHTML = h;
+}
+
+/* ---------------- Tab 4: verbeteren ---------------- */
+let lastDiag = null;
+function run4() {
+  if (!curEx) { $('vQ').innerHTML = '<div class="msg note">Vul eerst een oefening in bij Berekenen, of kies er een uit de generator.</div>'; $('ptsTable').innerHTML = ''; $('vOut').innerHTML = ''; return; }
+  $('vQ').innerHTML = questionFor(curEx) + `<div class="hint">Juist antwoord: pH = ${fix(PH.compute(curEx).pH, PH.expectedDecimals(curEx) || 2)}</div>`;
+  const v = $('vAns').value.trim();
+  lastDiag = v ? PH.diagnose(curEx, v) : null;
+  let h = '';
+  if (v && !lastDiag) h = '<div class="msg err">Geen geldig getal.</div>';
+  else if (lastDiag) {
+    const d = lastDiag;
+    if (d.correct) h += `<div class="msg ok"><b>Juist antwoord.</b></div>`;
+    else if (d.hits.length) h += d.hits.map(x => `<div class="msg note"><b>Waarschijnlijke fout: ${x.name}</b><br>${x.desc}<br><span class="hint">Feedback voor de leerling: ${hintFor(x)}</span></div>`).join('');
+    else h += '<div class="msg note"><b>Geen bekende denkfout gevonden.</b> Waarschijnlijk een rekenfout of een combinatie van fouten. Bekijk de uitwerking van de leerling.</div>';
+    h += d.d === d.expected ? `<div class="msg ok">Afronding: ${d.d} decimale${d.d === 1 ? '' : 'n'}, zoals verwacht bij ${d.expected} beduidende cijfers. ✓</div>`
+                            : `<div class="msg note">Afronding: de leerling geeft ${d.d} decimale${d.d === 1 ? '' : 'n'}, maar met ${d.expected} beduidende cijfers in de gegevens horen er ${d.expected} bij de pH.</div>`;
+  }
+  $('vOut').innerHTML = h;
+  buildPts();
+}
+let ptsState = [];
+function buildPts() {
+  const steps = PH.stepsFor(curEx);
+  if (ptsState.length !== steps.length) ptsState = steps.map(() => ({ p: 1, s: 'juist' }));
+  $('ptsTable').innerHTML = '<tr><th>Stap</th><th>Punten</th><th>Beoordeling</th></tr>' + steps.map((st, i) => `<tr><td>${st}</td>
+    <td><input type="number" min="0" step="0.5" value="${ptsState[i].p}" data-p="${i}"></td>
+    <td><select data-s="${i}">${['juist', 'fout', 'volgfout', 'half', 'niet gemaakt'].map(o => `<option value="${o}" ${ptsState[i].s === o ? 'selected' : ''}>${{ juist: 'juist', fout: 'fout', volgfout: 'volgfout (juist verder gerekend)', half: 'half juist', 'niet gemaakt': 'niet gemaakt' }[o]}</option>`).join('')}</select></td></tr>`).join('');
+  $('ptsTable').querySelectorAll('[data-p]').forEach(i => i.oninput = () => { ptsState[+i.dataset.p].p = parseNum(i.value) || 0; ptsCalc(); });
+  $('ptsTable').querySelectorAll('[data-s]').forEach(i => i.onchange = () => { ptsState[+i.dataset.s].s = i.value; ptsCalc(); });
+  ptsCalc();
+}
+function ptsCalc() {
+  const steps = PH.stepsFor(curEx);
+  const tot = ptsState.reduce((a, b) => a + b.p, 0);
+  const got = ptsState.reduce((a, b) => a + (b.s === 'juist' || b.s === 'volgfout' ? b.p : b.s === 'half' ? b.p / 2 : 0), 0);
+  $('ptsOut').innerHTML = `<div class="big" style="margin-top:12px;max-width:260px"><div class="lab">Score</div><div class="val">${fix(got, got % 1 ? 1 : 0)} / ${fix(tot, tot % 1 ? 1 : 0)}</div></div>`;
+}
+function ptsFeedback() {
+  const steps = PH.stepsFor(curEx).map(KL.stripTags);
+  const good = steps.filter((s, i) => ptsState[i].s === 'juist' || ptsState[i].s === 'volgfout');
+  const bad = steps.filter((s, i) => ptsState[i].s === 'fout' || ptsState[i].s === 'half');
+  let t = '';
+  if (good.length) t += `Goed: ${good.join(', ').toLowerCase()}.\n`;
+  if (bad.length) t += `Werkpunt: ${bad.join(', ').toLowerCase()}.\n`;
+  if (lastDiag && !lastDiag.correct && lastDiag.hits.length) t += `Tip: ${KL.stripTags(hintFor(lastDiag.hits[0]))}\n`;
+  if (lastDiag && lastDiag.d !== lastDiag.expected) t += `Let op de afronding: ${lastDiag.expected} beduidende cijfers in de gegevens betekent ${lastDiag.expected} decimale${lastDiag.expected > 1 ? 'n' : ''} in de pH.\n`;
+  return t.trim();
+}
+function ptsAuto() {
+  if (!lastDiag) return;
+  const steps = PH.stepsFor(curEx).map(KL.stripTags);
+  const idxOf = key => {
+    if (key === 'K') return steps.findIndex(s => /omrekenen|stap 2/i.test(s));
+    if (key === 'x') return steps.findIndex(s => /stap 3|\[.*\] berekenen|x berekenen/i.test(s));
+    if (key === 'pH') return steps.length - 1;
+    if (key === 'type') return 0;
+    return -1;
+  };
+  ptsState.forEach(p => p.s = 'juist');
+  if (!lastDiag.correct && lastDiag.hits.length) {
+    let i = idxOf(lastDiag.hits[0].step);
+    if (i < 0) i = steps.length - 1;
+    ptsState[i].s = 'fout';
+    for (let j = i + 1; j < ptsState.length; j++) ptsState[j].s = 'volgfout';
+  }
+  buildPts();
+}
+
+/* ---------------- Tab 5: zouten ---------------- */
+const kState = {};
+const plain = f => KL.chemPlain(f);
+function initSalts() {
+  $('cat').innerHTML = PH.CATIONS.map((c, i) => `<option value="${i}">${c.n} (${plain(c.f)})</option>`).join('');
+  $('an').innerHTML = PH.ANIONS.map((a, i) => `<option value="${i}">${a.n} (${plain(a.f)})</option>`).join('');
+  $('cat').value = 6; $('an').value = 0;
+}
+function kInput(key, label, def) {
+  if (!(key in kState)) kState[key] = KL.fmtIn(def);
+  return `<div><label>${label}</label><input data-k="${key}" inputmode="decimal" value="${kState[key]}"></div>`;
+}
+const getK = (key, def) => { const v = parseNum(kState[key]); return v > 0 ? v : def; };
+function run5(rebuild = true) {
+  const ci = +$('cat').value, ai = +$('an').value, cat = PH.CATIONS[ci], an = PH.ANIONS[ai];
+  if (rebuild) {
+    let ki = '';
+    if (cat.K) ki += kInput('c' + ci, `K<sub>z</sub>(${cat.hyd ? PH.hydForms(cat).ZH : chem(cat.f)})`, cat.K);
+    if (an.Kz) ki += kInput('az' + ai, `K<sub>z</sub>(${chem(an.f)})`, an.Kz);
+    if (an.Kb) ki += kInput('ab' + ai, `K<sub>b</sub>(${chem(an.f)})`, an.Kb);
+    $('kEdit').innerHTML = ki;
+    $('kEdit').querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => { kState[inp.dataset.k] = inp.value; run5(false); }));
+  }
+  const k = { cat: cat.K ? getK('c' + ci, cat.K) : undefined, az: an.Kz ? getK('az' + ai, an.Kz) : undefined, ab: an.Kb ? getK('ab' + ai, an.Kb) : undefined };
+  const s = PH.evalSalt(ci, ai, k);
+  let h = `<h2>Resultaat</h2><div class="eq" style="font-size:1.1rem">${s.diss.replace('<span class="arrowh2o">→</span>', '<span class="frac" style="font-size:.7em"><span style="border:0">H<sub>2</sub>O</span><span>→</span></span>')}</div>`;
+  h += `<table class="list"><tr><th>Ion</th><th>Gedrag</th><th>Uitleg</th></tr>${s.rows.map(r => `<tr><td>${r[0]}</td><td><span class="chip c-${r[1] === 'base' ? 'base' : r[1]}">${r[1]}</span></td><td>${r[2]}</td></tr>`).join('')}</table>`;
+  h += `<div class="msg" style="background:#f7f9fa;margin-top:14px"><span class="chip c-${s.concl[0] === 'basisch' ? 'base' : s.concl[0]}">${s.concl[0]}</span> ${s.concl[1]}</div>`;
+  const cs = parseNum($('sconc').value);
+  if ($('sconc').value && !(cs > 0)) h += '<div class="msg err">De concentratie is geen geldig positief getal.</div>';
+  else if (cs > 0) {
+    if (!s.kind) h += '<div class="msg info">pH = 7,00 (neutrale oplossing, 25 °C).</div>';
+    else if (s.both) h += '<div class="msg note">Als beide ionen met water reageren, valt de pH buiten het stappenplan van één zwak zuur of één zwakke base. De tool berekent hier geen pH.</div>';
+    else if (s.amphActive) h += `<div class="msg note">De pH van een amfolyt (zoals ${chem(an.f)}) bereken je niet met het gewone stappenplan, omdat het ion tegelijk als zuur en als base reageert.</div>`;
+    else {
+      const ex = PH.saltExercise(ci, ai, cs, $('sconc').value.trim(), k);
+      ex.q = PH.questionHtml(ex); ex.type = 'zout';
+      h += `<h2 style="margin-top:20px">pH van de oplossing</h2>${PH.solve(ex, { dec: 2 })}
+        <div class="btns no-print"><button class="btn" id="saltToMc">Maak hier een meerkeuzevraag van</button><button class="btn" id="saltToV">Verbeteren</button></div>`;
+      window._saltEx = ex;
+    }
+  } else h += '<p class="hint">Vul een concentratie in om ook de pH te berekenen.</p>';
+  $('out5').innerHTML = h;
+  const b1 = $('saltToMc'), b2 = $('saltToV');
+  if (b1) b1.onclick = () => { loadEx(window._saltEx, 'Zout'); showTab('t3'); };
+  if (b2) b2.onclick = () => { loadEx(window._saltEx, 'Zout'); showTab('t4'); };
+}
+/* Zout raden */
+const QUIZ = (() => {
+  const C = f => PH.CATIONS.findIndex(c => c.f === f), A = f => PH.ANIONS.findIndex(a => a.f === f);
+  const L = [['Na^+', 'Cl^-'], ['K^+', 'NO3^-'], ['Ca^2+', 'Cl^-'], ['K^+', 'Br^-'], ['Na^+', 'SO4^2-'], ['Ba^2+', 'Cl^-'],
+    ['NH4^+', 'Cl^-'], ['NH4^+', 'NO3^-'], ['Al^3+', 'Cl^-'], ['Fe^3+', 'NO3^-'], ['Cu^2+', 'SO4^2-'], ['Zn^2+', 'Cl^-'], ['NH4^+', 'SO4^2-'],
+    ['Na^+', 'CH3COO^-'], ['K^+', 'CN^-'], ['Na^+', 'CO3^2-'], ['K^+', 'F^-'], ['Na^+', 'ClO^-'], ['Na^+', 'PO4^3-'], ['Na^+', 'NO2^-'], ['K^+', 'HCOO^-'],
+    ['Na^+', 'HCO3^-'], ['Na^+', 'HSO4^-'], ['Na^+', 'H2PO4^-'], ['Na^+', 'HPO4^2-'], ['NH4^+', 'CN^-'], ['NH4^+', 'CH3COO^-'], ['NH4^+', 'F^-']];
+  return L.map(([c, a]) => [C(c), A(a)]);
+})();
+let quizOrder = [], quizI = 0, quizScore = 0, quizN = 0;
+function quizStart() { quizOrder = KL.shuffle(KL.rng(KL.newSeed()), QUIZ); quizI = 0; quizScore = 0; quizN = 0; quizShow(); }
+function quizShow(answer) {
+  const [ci, ai] = quizOrder[quizI % quizOrder.length];
+  const s = PH.evalSalt(ci, ai);
+  const truth = s.concl[0];
+  let h = `<div class="quiz-salt">${s.formula}</div><div style="text-align:center;color:var(--muted)">${s.name}</div>`;
+  if (!answer) {
+    h += `<div class="quiz-btns"><button style="background:var(--acid)" data-a="zuur">zuur</button><button style="background:var(--neutral)" data-a="neutraal">neutraal</button><button style="background:var(--base)" data-a="basisch">basisch</button></div>`;
+  } else {
+    const ok = answer === truth;
+    h += `<div class="msg ${ok ? 'ok' : 'note'}" style="text-align:center;font-size:1.05rem"><b>${ok ? 'Juist!' : 'Niet juist.'}</b> De oplossing is <b>${truth}</b>.</div>`;
+    h += `<table class="list" style="margin-top:10px">${s.rows.map(r => `<tr><td>${r[0]}</td><td><span class="chip c-${r[1] === 'base' ? 'base' : r[1]}">${r[1]}</span></td><td>${r[2]}</td></tr>`).join('')}</table>`;
+    h += `<div class="msg info">${s.concl[1]}</div>`;
+  }
+  h += `<div class="btns" style="justify-content:center">${answer ? '<button class="btn pri" id="qNext">Volgende zout ▶</button>' : ''}<button class="btn" id="qRestart">Opnieuw beginnen</button><span class="hint" style="margin:6px 0 0 8px">Score: ${quizScore} / ${quizN}</span></div>`;
+  $('quiz').innerHTML = h;
+  $('quiz').querySelectorAll('[data-a]').forEach(b => b.onclick = () => { quizN++; if (b.dataset.a === truth) quizScore++; quizShow(b.dataset.a); });
+  if ($('qNext')) $('qNext').onclick = () => { quizI++; quizShow(); };
+  $('qRestart').onclick = quizStart;
+}
+
+/* ---------------- Tab 6: visueel ---------------- */
+let parts = null, animId = null;
+function vParams() { const c = Math.pow(10, +$('vc').value), K = Math.pow(10, +$('vk').value); return { c, K }; }
+function initParts() {
+  const N = 24, r = KL.rng(42);
+  const mk = (x0) => Array.from({ length: N }, () => ({ x: x0 + 40 + r() * 340, y: 110 + r() * 260, vx: (r() - .5) * .6, vy: (r() - .5) * .6, x2: x0 + 40 + r() * 340, y2: 110 + r() * 260 }));
+  parts = { s: mk(30), w: mk(510), N };
+}
+function run6() {
+  const { c, K } = vParams();
+  $('vcLab').textContent = fmt(c, 2); $('vkLab').textContent = fmt(K, 2);
+  const a = PH.xBook(c, K) / c;
+  const ex = (c / K >= 1000) ? Math.sqrt(K * c) : (-K + Math.sqrt(K * K + 4 * K * c)) / 2;
+  const alpha = ex / c;
+  const N = 24, d = Math.round(alpha * N);
+  const pHs = -Math.log10(c), pHw = -Math.log10(ex);
+  $('beakerInfo').innerHTML = `<div class="grid" style="margin-top:12px">
+    <div class="big"><div class="lab">Sterk zuur (HA volledig)</div><div class="val">pH ${fix(pHs, 2)}</div><div class="hint" style="margin:0">100% geprotolyseerd</div></div>
+    <div class="big"><div class="lab">Zwak zuur, zelfde concentratie</div><div class="val">pH ${fix(pHw, 2)}</div><div class="hint" style="margin:0">${fix(alpha * 100, alpha < .01 ? 2 : 1)}% geprotolyseerd${d === 0 ? ` · minder dan 1 op ${N}, dus hier geen enkel ion zichtbaar` : ''}</div></div></div>`;
+  window._vD = d;
+  if (!animId) anim();
+}
+function drawBeaker(ctx, x0, title, list, nIon) {
+  ctx.save();
+  ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 4;
+  ctx.fillStyle = 'rgba(147,197,253,.18)';
+  ctx.beginPath(); ctx.moveTo(x0 + 20, 70); ctx.lineTo(x0 + 20, 380); ctx.quadraticCurveTo(x0 + 20, 400, x0 + 40, 400); ctx.lineTo(x0 + 400, 400); ctx.quadraticCurveTo(x0 + 420, 400, x0 + 420, 380); ctx.lineTo(x0 + 420, 70); ctx.stroke();
+  ctx.fillRect(x0 + 22, 100, 396, 298);
+  ctx.fillStyle = '#1b2130'; ctx.font = '700 22px system-ui'; ctx.textAlign = 'center'; ctx.fillText(title, x0 + 220, 40);
+  list.forEach((p, i) => {
+    if (i < nIon) {
+      ctx.fillStyle = '#e11d48'; ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, 7); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = '700 15px system-ui'; ctx.fillText('+', p.x, p.y + 5);
+      ctx.fillStyle = '#2563eb'; ctx.beginPath(); ctx.arc(p.x2, p.y2, 13, 0, 7); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.fillText('−', p.x2, p.y2 + 5);
+    } else {
+      ctx.fillStyle = '#2563eb'; ctx.beginPath(); ctx.arc(p.x, p.y, 13, 0, 7); ctx.fill();
+      ctx.fillStyle = '#f8fafc'; ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(p.x + 14, p.y - 9, 7, 0, 7); ctx.fill(); ctx.stroke();
+    }
+  });
+  ctx.restore();
+}
+function anim() {
+  const cv = $('beaker'), ctx = cv.getContext('2d');
+  const step = () => {
+    if (curTab !== 't6') { animId = null; return; }
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    [parts.s, parts.w].forEach((L, k) => L.forEach(p => {
+      const x0 = k ? 510 : 30;
+      ['', '2'].forEach(s => {
+        p['x' + s] = (p['x' + s] ?? p.x) + (Math.random() - .5) * 1.4; p['y' + s] = (p['y' + s] ?? p.y) + (Math.random() - .5) * 1.4;
+        p['x' + s] = Math.max(x0 + 40, Math.min(x0 + 400, p['x' + s])); p['y' + s] = Math.max(115, Math.min(385, p['y' + s]));
+      });
+    }));
+    drawBeaker(ctx, 30, 'Sterk zuur', parts.s, parts.N);
+    drawBeaker(ctx, 510, 'Zwak zuur', parts.w, window._vD || 0);
+    ctx.font = '15px system-ui'; ctx.textAlign = 'left'; ctx.fillStyle = '#334155';
+    const ly = 412; ctx.fillStyle = '#e11d48'; ctx.beginPath(); ctx.arc(330, ly, 7, 0, 7); ctx.fill(); ctx.fillStyle = '#334155'; ctx.fillText('H₃O⁺', 342, ly + 5);
+    ctx.fillStyle = '#2563eb'; ctx.beginPath(); ctx.arc(420, ly, 7, 0, 7); ctx.fill(); ctx.fillStyle = '#334155'; ctx.fillText('A⁻', 432, ly + 5);
+    ctx.fillStyle = '#2563eb'; ctx.beginPath(); ctx.arc(500, ly, 7, 0, 7); ctx.fill(); ctx.fillStyle = '#f8fafc'; ctx.strokeStyle = '#64748b'; ctx.beginPath(); ctx.arc(510, ly - 5, 4, 0, 7); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#334155'; ctx.fillText('HA (niet geprotolyseerd)', 522, ly + 5);
+    animId = requestAnimationFrame(step);
+  };
+  animId = requestAnimationFrame(step);
+}
+function dilution() {
+  const { c, K } = vParams();
+  const ptsS = [], ptsW = [], ptsN = [];
+  for (let e = 0; e <= 8.001; e += 0.05) {
+    const cc = Math.pow(10, -e);
+    ptsS.push([e, PH.exactAcidPH(cc, Infinity)]); ptsW.push([e, PH.exactAcidPH(cc, K)]); ptsN.push([e, e]);
+  }
+  const cur = -Math.log10(c);
+  $('dilChart').innerHTML = KL.chart({ x0: 0, x1: 8, y0: 0, y1: 8, xticks: [0, 1, 2, 3, 4, 5, 6, 7, 8], yticks: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+    xfmt: v => v === 0 ? '1' : '10⁻' + KL.supNum(v).replace('⁻', ''), xlab: 'concentratie zuur (mol/l), steeds 10 keer verdund →', ylab: 'pH',
+    hlines: [{ y: 7, color: '#1f8a4c', label: 'pH 7' }],
+    series: [{ pts: ptsN, color: '#c01048', dash: true, name: 'sterk zuur, pH = −log c (zonder water)' }, { pts: ptsS, color: '#c01048', name: 'sterk zuur (exact)' }, { pts: ptsW, color: '#2457c5', name: `zwak zuur, Kz = ${fmt(K, 2)}` }],
+    marks: [{ x: cur, y: PH.exactAcidPH(c, Infinity), color: '#c01048' }, { x: cur, y: PH.exactAcidPH(c, K), color: '#2457c5' }] });
+  let t = '<tr><th>c (mol/l)</th><th>pH sterk zuur</th><th>pH zwak zuur</th><th>ΔpH zwak t.o.v. vorige</th></tr>';
+  let prev = null;
+  for (let e = 1; e <= 7; e++) {
+    const cc = Math.pow(10, -e), s = PH.exactAcidPH(cc, Infinity), w = PH.exactAcidPH(cc, K);
+    t += `<tr><td>${fmt(cc, 1)}</td><td>${fix(s, 2)}</td><td>${fix(w, 2)}</td><td>${prev == null ? '' : '+' + fix(w - prev, 2)}</td></tr>`; prev = w;
+  }
+  $('dilTable').innerHTML = t;
+}
+
+/* ---------------- Tab 7 ---------------- */
+function run7() {
+  const v = parseNum($('cvVal').value), w = $('cvWhat').value;
+  if (!$('cvVal').value) { $('out7').innerHTML = ''; return; }
+  if (!isFinite(v) || (!w.startsWith('p') && !(v > 0))) { $('out7').innerHTML = '<div class="msg err">Geen geldig getal.</div>'; return; }
+  let kz;
+  if (w === 'kz') kz = v; else if (w === 'kb') kz = KW / v; else if (w === 'pkz') kz = Math.pow(10, -v); else kz = KW / Math.pow(10, -v);
+  const kb = KW / kz;
+  $('out7').innerHTML = `<table class="list" style="margin-top:14px"><tr><th>Grootheid</th><th>Waarde</th></tr>
+    <tr><td>K<sub>z</sub> (zuur)</td><td>${fmt(kz)}</td></tr><tr><td>K<sub>b</sub> (geconjugeerde base)</td><td>${fmt(kb)}</td></tr>
+    <tr><td>pK<sub>z</sub></td><td>${fix(-Math.log10(kz), 2)}</td></tr><tr><td>pK<sub>b</sub></td><td>${fix(-Math.log10(kb), 2)}</td></tr></table>
+    <div class="msg info">Hoe groter K<sub>z</sub>, hoe sterker het zuur en hoe zwakker zijn geconjugeerde base.</div>`;
+}
+function ktable() {
+  const rows = [...PH.WEAK_ACIDS.map(a => [a.name, chem(a.Z), a.K, chem(a.B), KW / a.K]), ...PH.WEAK_BASES.map(b => [b.name, chem(b.Z), KW / b.K, chem(b.B), b.K])]
+    .sort((a, b) => b[2] - a[2]);
+  $('ktable').innerHTML = '<tr><th>Stof</th><th>Zuur</th><th>K<sub>z</sub></th><th>Base</th><th>K<sub>b</sub></th></tr>' + rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${fmt(r[2], 2)}</td><td>${r[3]}</td><td>${fmt(r[4], 2)}</td></tr>`).join('');
+}
+
+/* ---------------- Algemeen ---------------- */
+function refreshDependents() { if (curTab === 't3') run3(); if (curTab === 't4') run4(); }
+const showTab = KL.tabs(id => {
+  curTab = id;
+  if (id === 't3') run3();
+  if (id === 't4') run4();
+  if (id === 't6') { run6(); dilution(); }
+  if (id === 't2' && !gEx.length) run2();
+});
+function share() {
+  if (curTab === 't2') return { url: studentLink(), title: 'Deel met leerlingen', text: 'Leerlingen krijgen deze oefenreeks met een invulveld en meteen feedback per oefening.' };
+  const o = { tab: curTab, kind: $('kind').value, conc: $('conc').value, kval: $('kval').value, z: $('zName').value, b: $('bName').value, n: $('nval').value, dec: $('dec').value, conj: $('conj').checked ? 1 : 0 };
+  return o;
+}
+KL.toolbar({ share });
+
+['kind', 'conc', 'kval', 'zName', 'bName', 'dec', 'nval', 'conj'].forEach(id => $(id).addEventListener('input', () => { if (id !== 'dec') { loadedEx = null; $('loadedBox').classList.add('hidden'); } run1(); }));
+document.querySelectorAll('[data-ex]').forEach(b => b.addEventListener('click', () => setForm({ nval: '1', ...EX[b.dataset.ex] })));
+document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => showTab(b.dataset.go)));
+$('variantBtn').onclick = variant;
+$('gGo').onclick = () => { gSeed = KL.newSeed(); run2(); };
+['gN', 'gRule', 'gConj', 'gDec'].forEach(id => $(id).addEventListener('change', run2));
+document.querySelectorAll('#gTypes input').forEach(i => i.addEventListener('change', run2));
+$('gWs').onclick = () => printWorksheet(false);
+$('gKey').onclick = () => printWorksheet(true);
+$('gStud').onclick = () => KL.shareModal(studentLink(), 'Deel met leerlingen', 'Leerlingen krijgen deze oefenreeks met een invulveld en meteen feedback per oefening.');
+$('mcShuffle').onclick = () => { mcSeed++; run3(); };
+$('mcPrint').onclick = () => {
+  if (!mc) return;
+  KL.printDoc('Meerkeuzevraag pH', KL.worksheetHead('Meerkeuzevraag pH') + `<div class="ws-q">${$('mcBox').innerHTML.split('<h3>')[0]}</div><div style="break-before:page"></div><h2>Sleutel: ${mc.letter}</h2><h3>${$('mcBox').innerHTML.split('<h3>')[1]}`);
+};
+$('mcCopy').onclick = async e => { if (!mc) return; try { await navigator.clipboard.writeText(mcText()); e.target.textContent = 'Gekopieerd ✓'; } catch { alert(mcText()); } };
+document.querySelectorAll('.own').forEach(i => i.addEventListener('input', runOwn));
+$('vAns').addEventListener('input', run4);
+$('ptsAuto').onclick = ptsAuto;
+$('ptsCopy').onclick = async e => { const t = ptsFeedback(); try { await navigator.clipboard.writeText(t); e.target.textContent = 'Gekopieerd ✓'; } catch { alert(t); } };
+initSalts();
+$('cat').addEventListener('change', () => run5());
+$('an').addEventListener('change', () => run5());
+$('sconc').addEventListener('input', () => run5(false));
+['vc', 'vk'].forEach(id => $(id).addEventListener('input', () => { run6(); dilution(); }));
+['cvWhat', 'cvVal'].forEach(id => $(id).addEventListener('input', run7));
+initParts(); ktable(); run5(); quizStart();
+
+/* Link openen */
+const p = KL.readHash();
+if (p.leerling) studentMode(p);
+else {
+  if (p.kind) { setForm({ kind: p.kind, conc: p.conc || '', kval: p.kval || '', zName: p.z || '', bName: p.b || '', nval: p.n || '1', dec: p.dec || '2', conj: p.conj === '1' }); }
+  else run1();
+  if (p.tab) showTab(p.tab);
+}
+</script>
+</body>
+</html>

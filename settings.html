@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instellingen · Klaslab</title>
+<link rel="stylesheet" href="assets/common.css">
+<link rel="stylesheet" href="assets/personal.css">
+<script src="assets/config.js"></script>
+<script src="assets/profile.js"></script>
+<style>
+  main{max-width:760px}
+  .card h2{display:flex;align-items:center;gap:8px}
+  .field{margin-top:14px}
+  .field:first-of-type{margin-top:0}
+  .check{display:flex;gap:10px;align-items:flex-start;font-weight:500;font-size:.95rem;margin:0;cursor:pointer}
+  .check input{margin-top:4px}
+  .checks{display:grid;gap:8px;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;background:var(--bg)}
+  .seg label{margin:0;padding:6px 14px;border-radius:7px;cursor:pointer;font-weight:600;font-size:.88rem;color:var(--muted)}
+  .seg input{position:absolute;opacity:0;pointer-events:none}
+  .seg label:has(input:checked){background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .seg label:has(input:focus-visible){outline:2px solid var(--accent)}
+  .sw{display:flex;gap:10px;flex-wrap:wrap}
+  .sw label{margin:0;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;font-weight:500;font-size:.75rem;color:var(--muted)}
+  .sw input{position:absolute;opacity:0;pointer-events:none}
+  .sw .c{width:36px;height:36px;border-radius:50%;border:3px solid var(--card);box-shadow:0 0 0 1px var(--line);transition:box-shadow .15s ease}
+  .sw input:checked + .c{box-shadow:0 0 0 2px var(--ink)}
+  .sw input:focus-visible + .c{box-shadow:0 0 0 2px var(--accent),0 0 0 4px var(--card)}
+  .preview{border:1px dashed var(--line);border-radius:10px;padding:14px 16px;background:var(--bg);font-size:.92rem}
+  .preview .ws-head{display:flex;justify-content:space-between;gap:12px;border-bottom:2px solid var(--ink);padding-bottom:8px}
+  .preview h1{font-size:1.15rem}
+  .code{font-family:var(--mono);font-size:1.5rem;font-weight:800;letter-spacing:.12em}
+  .status{font-size:.85rem;color:var(--muted);min-height:1.3em}
+  .status.ok{color:var(--ok)} .status.bad{color:var(--bad)}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+</style>
+</head>
+<body>
+<main>
+  <div class="top no-print"><a class="kl-back" href="index.html">← Alle tools</a><span class="status" id="status" role="status" aria-live="polite"></span></div>
+  <h1>Instellingen</h1>
+  <p class="sub">Maak Klaslab van jou. Wijzigingen worden meteen bewaard.</p>
+
+  <section class="card">
+    <h2>👋 Over jou</h2>
+    <div class="grid">
+      <div><label for="name">Je naam</label><input id="name" autocomplete="name" maxlength="100" placeholder="bv. Mevr. Janssens"></div>
+      <div><label for="school">School</label><input id="school" autocomplete="organization" maxlength="120" placeholder="bv. Sint-Jozefscollege"></div>
+    </div>
+    <div class="field"><label class="check"><input type="checkbox" id="greeting"> Begroet me op de startpagina</label></div>
+  </section>
+
+  <section class="card">
+    <h2>📝 Werkbladen</h2>
+    <p class="hint" style="margin:0 0 12px">Je naam en school komen bovenaan elk werkblad en elke verbetersleutel.</p>
+    <div class="preview" aria-hidden="true"><div id="wsPreview"></div></div>
+  </section>
+
+  <section class="card">
+    <h2>⭐ Startpagina</h2>
+    <label>Vakken die je toont</label>
+    <div class="checks" id="subjects"></div>
+    <p class="hint">Verborgen vakken vind je nog altijd via het zoekveld.</p>
+    <label style="margin-top:16px">Favorieten bovenaan</label>
+    <div class="checks" id="favs"></div>
+    <p class="hint">Je kan ook op het sterretje van een tool klikken op de startpagina.</p>
+  </section>
+
+  <section class="card">
+    <h2>🎨 Uiterlijk</h2>
+    <label>Thema</label>
+    <div class="seg" id="theme" role="radiogroup" aria-label="Thema">
+      <label><input type="radio" name="theme" value="auto">Automatisch</label>
+      <label><input type="radio" name="theme" value="light">Licht</label>
+      <label><input type="radio" name="theme" value="dark">Donker</label>
+    </div>
+    <label style="margin-top:16px">Accentkleur</label>
+    <div class="sw" id="accent" role="radiogroup" aria-label="Accentkleur"></div>
+  </section>
+
+  <section class="card" id="sync">
+    <h2>🔄 Op al je toestellen</h2>
+    <div id="syncBody"></div>
+  </section>
+</main>
+
+<script src="assets/common.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = KLP.esc;
+let local = false; // eigen wijziging: niet hertekenen
+
+function status(t, cls = '') { const s = $('status'); s.textContent = t; s.className = 'status ' + cls; }
+async function save(patch) {
+  status('Opslaan…');
+  local = true; const pr = KLP.save(patch); local = false;
+  preview();
+  const r = await pr;
+  if (r === 'synced') status('Opgeslagen ✓', 'ok');
+  else if (r === 'local') status('Opgeslagen in deze browser ✓', 'ok');
+  else status('Opgeslagen in deze browser, synchroniseren lukte niet', 'bad');
+  renderSync();
+}
+
+function renderAll() {
+  const p = KLP.get();
+  $('name').value = p.name; $('school').value = p.school;
+  $('greeting').checked = p.greeting;
+  $('subjects').innerHTML = KLP.SUBJECTS.map(s => `<label class="check"><input type="checkbox" value="${s.id}" ${p.hidden.includes(s.id) ? '' : 'checked'}> ${s.name}</label>`).join('');
+  $('favs').innerHTML = KLP.TOOLS.map(t => `<label class="check"><input type="checkbox" value="${t.id}" ${p.favorites.includes(t.id) ? 'checked' : ''}> ${esc(t.name)}</label>`).join('');
+  document.querySelectorAll('#theme input').forEach(i => i.checked = i.value === p.theme);
+  $('accent').innerHTML = KLP.ACCENTS.map((a, i) => `<label><input type="radio" name="accent" value="${a.v}" ${a.v === p.accent ? 'checked' : ''} aria-label="${a.n}">
+    <span class="c" style="background:${a.v || 'conic-gradient(#0e7c86 0 50%,#2f8f4e 0)'}"></span>${a.n}</label>`).join('');
+  preview();
+  renderSync();
+}
+function preview() {
+  $('wsPreview').innerHTML = KL.worksheetHead('Oefeningen pH', 'Reeks #48213 · 6 oefeningen');
+}
+
+function renderSync() {
+  const b = $('syncBody');
+  if (!KLP.hasApi()) {
+    b.innerHTML = `<p style="margin:0">Je instellingen staan nu enkel in deze browser.</p>
+      <p class="hint">Om ze op elke computer te hebben, koppel je de Google Sheet databank (zie <code>apps-script/README.md</code>).</p>`;
+    return;
+  }
+  const code = KLP.getCode();
+  b.innerHTML = `${code ? `<p style="margin:0 0 6px">Jouw persoonlijke code</p>
+      <div class="row"><span class="code" id="code">${esc(code)}</span><button class="btn" id="copy" type="button">Kopieer</button></div>
+      <p class="hint">Vul deze code in op een andere computer (thuis, in de klas) om dezelfde instellingen te krijgen. Deel hem niet met leerlingen.</p>`
+    : `<p style="margin:0">Zodra je iets wijzigt, krijg je een persoonlijke code om je instellingen op andere toestellen te gebruiken.</p>`}
+    <label for="other" style="margin-top:16px">Code van een ander toestel gebruiken</label>
+    <div class="row"><input id="other" placeholder="ABCD-1234" style="max-width:200px;font-family:var(--mono);text-transform:uppercase" maxlength="9" autocomplete="off"><button class="btn pri" id="use" type="button">Koppelen</button></div>
+    <div class="msg err hidden" id="useErr"></div>`;
+  if (code) $('copy').onclick = async e => { try { await navigator.clipboard.writeText(code); e.target.textContent = 'Gekopieerd ✓'; } catch { } };
+  $('use').onclick = async () => {
+    const err = $('useErr'); err.classList.add('hidden');
+    const v = $('other').value;
+    if (KLP.getCode() && !confirm('De instellingen van deze browser worden vervangen door die van de andere code. Doorgaan?')) return;
+    $('use').disabled = true;
+    try { await KLP.useCode(v); status('Gekoppeld ✓', 'ok'); renderAll(); }
+    catch (e) { err.textContent = e.message; err.classList.remove('hidden'); $('use').disabled = false; }
+  };
+  $('other').onkeydown = e => { if (e.key === 'Enter') $('use').click(); };
+}
+
+/* Invoer */
+['name', 'school'].forEach(id => $(id).addEventListener('input', () => save({ [id]: $(id).value.trim() })));
+$('greeting').onchange = e => save({ greeting: e.target.checked });
+$('subjects').onchange = () => save({ hidden: [...$('subjects').querySelectorAll('input')].filter(i => !i.checked).map(i => i.value) });
+$('favs').onchange = () => save({ favorites: [...$('favs').querySelectorAll('input:checked')].map(i => i.value) });
+$('theme').onchange = e => save({ theme: e.target.value });
+$('accent').onchange = e => save({ accent: e.target.value });
+
+document.addEventListener('kl:profile', () => { if (!local) renderAll(); });
+renderAll();
+</script>
+</body>
+</html>

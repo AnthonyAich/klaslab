@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Titratiecurves · Klaslab</title>
+<link rel="stylesheet" href="../assets/common.css">
+<link rel="stylesheet" href="../assets/personal.css">
+<script src="../assets/config.js"></script>
+<script src="../assets/profile.js"></script>
+<style>.ind-ok{background:#effaf3}.sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;border:1px solid #0002}</style>
+</head>
+<body>
+<main>
+  <div id="kl-top"></div>
+  <h1>Titratiecurves</h1>
+  <p class="sub">Exacte titratiecurve met equivalentiepunt, halfequivalentiepunt en een advies voor de indicator. Met de berekening van de belangrijkste punten.</p>
+
+  <section class="card no-print">
+    <h2>Titratie</h2>
+    <div class="grid">
+      <div><label for="type">In het erlenmeyertje</label><select id="type">
+        <option value="sz">sterk zuur, getitreerd met NaOH</option><option value="zz" selected>zwak zuur, getitreerd met NaOH</option>
+        <option value="sb">sterke base, getitreerd met HCl</option><option value="zb">zwakke base, getitreerd met HCl</option></select></div>
+      <div><label for="ca">Concentratie (mol/l)</label><input id="ca" inputmode="decimal" value="0,100"></div>
+      <div><label for="va">Volume (ml)</label><input id="va" inputmode="decimal" value="25,0"></div>
+      <div id="kBox"><label for="k" id="kLab">K<sub>z</sub></label><input id="k" inputmode="decimal" value="1,8·10^-5"></div>
+      <div><label for="ct">Concentratie titrant (mol/l)</label><input id="ct" inputmode="decimal" value="0,100"></div>
+      <div><label for="vx">Bekijk punt bij toegevoegd volume (ml)</label><input id="vx" inputmode="decimal" placeholder="optioneel"></div>
+    </div>
+    <div class="btns"><button class="btn pri" id="variant">🎲 Variant</button><button class="btn" id="ws">🖨 Werkblad bij deze curve</button></div>
+    <div id="msg"></div>
+  </section>
+
+  <section class="card"><div id="chart"></div><div id="sel" class="hidden"></div></section>
+  <section class="card"><h2>Belangrijke punten</h2><div id="pts"></div></section>
+  <section class="card"><h2>Welke indicator?</h2><p class="hint" style="margin:0 0 8px">Geschikt als het omslaggebied binnen de pH sprong rond het equivalentiepunt valt (tussen 99% en 101% van V<sub>eq</sub>).</p><div class="scroll"><table class="list" id="ind"></table></div></section>
+  <footer>Klaslab · exacte berekening met ladingsbalans, 25 °C</footer>
+</main>
+<script src="../assets/qrcode.js"></script>
+<script src="../assets/common.js"></script>
+<script src="../assets/indicators.js"></script>
+<script>
+const { fmt, fix, frac, parseNum, KW } = KL;
+const $ = id => document.getElementById(id);
+let selIdx = 0;
+
+/* pH na toevoegen van Vt ml titrant (exact) */
+function pHat(S, Vt) {
+  const V = (S.va + Vt) / 1000, CA = S.ca * S.va / 1000 / V, CT = S.ct * Vt / 1000 / V;
+  if (S.type === 'sz' || S.type === 'zz') {
+    const Ka = S.type === 'sz' ? Infinity : S.K;
+    const f = h => h + CT - KW / h - (Ka === Infinity ? CA : CA * Ka / (Ka + h));
+    return -Math.log10(KL.bisect(f, 1e-15, 10));
+  } else {
+    const Kz = S.type === 'sb' ? 0 : KW / S.K;
+    const f = h => h + (Kz === 0 ? CA : CA * h / (h + Kz)) - KW / h - CT;
+    return -Math.log10(KL.bisect(f, 1e-15, 10));
+  }
+}
+function read() {
+  const S = { type: $('type').value, ca: parseNum($('ca').value), va: parseNum($('va').value), K: parseNum($('k').value), ct: parseNum($('ct').value) };
+  S.weak = S.type[0] === 'z'; S.acid = S.type[1] === 'z';
+  return S;
+}
+function run() {
+  const S = read();
+  $('kBox').classList.toggle('hidden', !S.weak);
+  $('kLab').innerHTML = S.acid ? 'K<sub>z</sub> van het zuur' : 'K<sub>b</sub> van de base';
+  const err = [];
+  if (!(S.ca > 0) || !(S.va > 0) || !(S.ct > 0)) err.push('Vul positieve concentraties en een volume in.');
+  if (S.weak && !(S.K > 0 && S.K < 1)) err.push('Geef een geldige K tussen 0 en 1.');
+  $('msg').innerHTML = err.map(e => `<div class="msg err">${e}</div>`).join('');
+  if (err.length) return;
+  const Veq = S.ca * S.va / S.ct, Vmax = 2 * Veq;
+  const pts = [];
+  for (let i = 0; i <= 400; i++) { const v = Vmax * i / 400; pts.push([v, pHat(S, v)]); }
+  const pEq = pHat(S, Veq), pHalf = pHat(S, Veq / 2), p0 = pHat(S, 0);
+  const lo = pHat(S, Veq * 0.99), hi = pHat(S, Veq * 1.01);
+  const jump = [Math.min(lo, hi), Math.max(lo, hi)];
+  const IND = window.INDICATORS;
+  const fits = IND.map(I => I.lo >= jump[0] - 0.05 && I.hi <= jump[1] + 0.05);
+  if (selIdx === null || !fits[selIdx]) { const f = fits.findIndex(Boolean); selIdx = f >= 0 ? f : null; }
+  const vx = parseNum($('vx').value);
+  const marks = [{ x: Veq, y: pEq, color: '#c01048', label: 'equivalentiepunt' }];
+  if (S.weak) marks.push({ x: Veq / 2, y: pHalf, color: '#0e7c86', label: S.acid ? 'pH = pKz' : 'pOH = pKb', dy: S.acid ? -10 : 18 });
+  if (vx >= 0) marks.push({ x: Math.min(vx, Vmax), y: pHat(S, vx), color: '#111', label: `${fix(vx, 1)} ml` });
+  const I = selIdx != null ? IND[selIdx] : null;
+  $('chart').innerHTML = KL.chart({ x0: 0, x1: Vmax, y0: 0, y1: 14, yticks: [0, 2, 4, 6, 7, 8, 10, 12, 14], xticks: (() => { const raw = Vmax / 8, m = Math.pow(10, Math.floor(Math.log10(raw))), st = [1, 2, 2.5, 5, 10].map(x => x * m).find(x => x >= raw); const t = []; for (let v = 0; v <= Vmax + 1e-9; v += st) t.push(+v.toPrecision(6)); return t; })(),
+    xfmt: v => fix(v, Number.isInteger(v) ? 0 : 1), xlab: `toegevoegd volume ${S.acid ? 'NaOH' : 'HCl'} (ml)`, ylab: 'pH',
+    series: [{ pts, color: '#1b2130', width: 3 }], marks, vlines: [{ x: Veq, color: '#c01048', label: `V<sub>eq</sub>`.replace(/<[^>]+>/g, '') + ' = ' + fix(Veq, 2) + ' ml' }],
+    bands: I ? [{ y0: I.lo, y1: I.hi, color: I.cb }] : [] });
+  $('sel').classList.toggle('hidden', !I);
+  if (I) $('sel').innerHTML = `<div class="msg info">Ingekleurd: omslaggebied van <b>${I.n}</b> (pH ${fix(I.lo, 1)} tot ${fix(I.hi, 1)}). Klik hieronder een andere indicator aan.</div>`;
+
+  // belangrijke punten
+  const tit = S.acid ? 'NaOH' : 'HCl';
+  let h = `<div class="sol"><div class="head">BEREKENING</div><div class="body">`;
+  h += `<div class="step"><h4>Equivalentiepunt</h4><div class="eq">n = c · V = ${fmt(S.ca)} · ${fmt(S.va / 1000)} = ${fmt(S.ca * S.va / 1000)} mol</div>
+    <div class="eq">V<sub>eq</sub> = ${frac('n', 'c<sub>titrant</sub>')} = ${frac(fmt(S.ca * S.va / 1000), fmt(S.ct))} = ${fmt(Veq / 1000)} l = ${fix(Veq, 2)} ml ${tit}</div></div>`;
+  h += `<div class="step"><h4>Beginpunt (0 ml)</h4>${S.weak ? `Oplossing van een ${S.acid ? 'zwak zuur' : 'zwakke base'}: stappenplan met K. ` : `Volledige protolyse: [${S.acid ? 'H<sub>3</sub>O<sup>+</sup>' : 'OH<sup>−</sup>'}] = ${fmt(S.ca)} mol/l. `}<div class="eq">pH = ${fix(p0, 2)}</div></div>`;
+  if (S.weak) h += `<div class="step"><h4>Halfequivalentiepunt (${fix(Veq / 2, 2)} ml)</h4>De helft is omgezet: evenveel ${S.acid ? 'zuur als geconjugeerde base' : 'base als geconjugeerd zuur'}. Dat is een buffer:
+    <div class="eq">${S.acid ? `pH = pK<sub>z</sub> = −log(${fmt(S.K)}) = ${fix(-Math.log10(S.K), 2)}` : `pOH = pK<sub>b</sub> = ${fix(-Math.log10(S.K), 2)} ⇒ pH = ${fix(14 + Math.log10(S.K), 2)}`}</div><p class="hint" style="margin:0">Exacte waarde: ${fix(pHalf, 2)}</p></div>`;
+  const conj = S.acid ? (S.weak ? 'zwakke base (geconjugeerde base)' : 'neutraal zout') : (S.weak ? 'zwak zuur (geconjugeerd zuur)' : 'neutraal zout');
+  h += `<div class="step"><h4>Equivalentiepunt (${fix(Veq, 2)} ml)</h4>Alles is omgezet. In de erlenmeyer zit enkel een ${conj}${S.weak ? `, met c = ${fmt(S.ca * S.va / (S.va + Veq))} mol/l (verdund door de titrant)` : ''}.
+    <div class="eq">pH = ${fix(pEq, 2)} ${S.weak ? (S.acid ? '(&gt; 7: basisch)' : '(&lt; 7: zuur)') : '(neutraal)'}</div></div>`;
+  const v15 = 1.5 * Veq;
+  h += `<div class="step"><h4>Na het equivalentiepunt (bv. ${fix(v15, 2)} ml)</h4>Het overschot ${S.acid ? 'OH<sup>−</sup>' : 'H<sub>3</sub>O<sup>+</sup>'} bepaalt de pH:
+    <div class="eq">overschot = ${frac(`${fmt(S.ct)} · ${fmt(0.5 * Veq / 1000)}`, `${fmt((S.va + v15) / 1000)} l`)} = ${fmt(S.ct * 0.5 * Veq / (S.va + v15))} mol/l ⇒ pH = ${fix(pHat(S, v15), 2)}</div></div>`;
+  if (vx >= 0) h += `<div class="step"><h4>Gekozen punt (${fix(vx, 2)} ml)</h4><div class="eq">pH = ${fix(pHat(S, vx), 2)}</div></div>`;
+  h += `</div></div><div class="result"><div class="big"><div class="lab">V<sub>eq</sub></div><div class="val">${fix(Veq, 2)} ml</div></div><div class="big"><div class="lab">pH bij equivalentie</div><div class="val">${fix(pEq, 2)}</div></div><div class="big"><div class="lab">pH sprong (99% → 101%)</div><div class="val" style="font-size:1.15rem;padding-top:6px">${fix(jump[0], 1)} → ${fix(jump[1], 1)}</div></div></div>`;
+  $('pts').innerHTML = h;
+
+  $('ind').innerHTML = '<tr><th></th><th>Indicator</th><th>Omslaggebied</th><th>Kleur</th><th>Geschikt?</th></tr>' + IND.map((I, i) => `<tr class="${fits[i] ? 'ind-ok' : ''}" style="cursor:pointer" data-i="${i}">
+    <td><input type="radio" name="ind" ${i === selIdx ? 'checked' : ''}></td><td>${I.n}</td><td>${fix(I.lo, 1)} tot ${fix(I.hi, 1)}</td>
+    <td><span class="sw" style="background:${I.ca}"></span> ${I.na} → <span class="sw" style="background:${I.cb}"></span> ${I.nb}</td>
+    <td>${fits[i] ? '<span class="chip c-ok">ja</span>' : (I.hi < jump[0] ? 'slaat te vroeg om' : I.lo > jump[1] ? 'slaat te laat om' : 'gedeeltelijk')}</td></tr>`).join('');
+  $('ind').querySelectorAll('tr[data-i]').forEach(tr => tr.onclick = () => { selIdx = +tr.dataset.i; run(); });
+}
+['type', 'ca', 'va', 'k', 'ct', 'vx'].forEach(id => $(id).addEventListener('input', () => { if (id === 'type') { selIdx = 0; $('k').value = $('type').value === 'zb' ? '1,8·10^-5' : '1,8·10^-5'; } run(); }));
+const ACIDS = [['azijnzuur', 1.8e-5], ['mierenzuur', 1.8e-4], ['benzoëzuur', 6.3e-5], ['hypochlorigzuur', 3.0e-8]], BASES = [['ammoniak', 1.8e-5], ['methylamine', 4.4e-4]];
+function randomCase(r) {
+  const type = KL.pick(r, ['sz', 'zz', 'zz', 'sb', 'zb']);
+  const sp = type === 'zz' ? KL.pick(r, ACIDS) : type === 'zb' ? KL.pick(r, BASES) : null;
+  return { type, ca: KL.pick(r, [0.0500, 0.100, 0.150, 0.200]), va: KL.pick(r, [10.0, 20.0, 25.0, 50.0]), ct: KL.pick(r, [0.100, 0.200, 0.0500]), K: sp ? sp[1] : null, name: sp ? sp[0] : (type === 'sz' ? 'zoutzuur' : 'natriumhydroxide') };
+}
+function applyCase(c) { $('type').value = c.type; $('ca').value = fmt(c.ca, 3); $('va').value = fix(c.va, 1); $('ct').value = fmt(c.ct, 3); if (c.K) $('k').value = KL.fmtIn(c.K); selIdx = 0; run(); }
+$('variant').onclick = () => applyCase(randomCase(KL.rng(KL.newSeed())));
+$('ws').onclick = () => {
+  const S = read(), Veq = S.ca * S.va / S.ct;
+  const tit = S.acid ? 'NaOH' : 'HCl';
+  const desc = `${fix(S.va, 1)} ml van een ${{ sz: 'sterk zuur', zz: 'zwak zuur', sb: 'sterke base', zb: 'zwakke base' }[S.type]} met c = ${fmt(S.ca)} mol/l wordt getitreerd met ${fmt(S.ct)} mol/l ${tit}.`;
+  const qs = ['Bepaal op de curve het volume bij het equivalentiepunt en controleer met een berekening.', 'Lees de pH af bij het equivalentiepunt. Is die zuur, neutraal of basisch? Verklaar.',
+    ...(S.weak ? [`Bepaal de ${S.acid ? 'pK<sub>z</sub>' : 'pK<sub>b</sub>'} uit de curve. Bij welk volume lees je die af?`] : []), 'Welke indicator uit de tabel is geschikt? Verklaar.'];
+  const IND = window.INDICATORS;
+  const indTable = `<table class="list"><tr><th>Indicator</th><th>Omslaggebied</th></tr>${IND.map(I => `<tr><td>${I.n}</td><td>${fix(I.lo, 1)} tot ${fix(I.hi, 1)}</td></tr>`).join('')}</table>`;
+  const chart = $('chart').innerHTML;
+  let h = KL.worksheetHead('Titratiecurve') + `<p>${desc}</p>${chart}` + qs.map((q, i) => `<div class="ws-q"><b>${i + 1}.</b> ${q}<div class="ws-lines"></div><div class="ws-lines"></div></div>`).join('') + indTable;
+  h += `<div style="break-before:page"></div><h2>Verbetersleutel</h2>${$('pts').innerHTML}`;
+  KL.printDoc('Werkblad titratie', h);
+};
+KL.toolbar({ share: () => ({ type: $('type').value, ca: $('ca').value, va: $('va').value, k: $('k').value, ct: $('ct').value }) });
+const p = KL.readHash();
+if (p.type) ['type', 'ca', 'va', 'k', 'ct'].forEach(k => p[k] && ($(k).value = p[k]));
+run();
+</script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+/* Klaslab · persoonlijke laag: accentkleur, donker thema, aanvraagknop */
+
+:root[data-accent]{--accent2:color-mix(in srgb,var(--accent) 12%,#fff)}
+
+/* Knop rechtsonder */
+.klp-fab{position:fixed;right:16px;bottom:16px;z-index:45;display:flex;align-items:center;gap:8px;
+  font:inherit;font-size:.88rem;font-weight:600;padding:10px 16px;border-radius:99px;cursor:pointer;
+  border:1px solid var(--line,#e2e5ea);background:var(--card,#fff);color:var(--ink,#1b2130);
+  box-shadow:0 6px 20px rgba(20,30,50,.14);transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
+.klp-fab:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(20,30,50,.18);border-color:var(--accent,#0e7c86)}
+.klp-fab:focus-visible{outline:2px solid var(--accent,#0e7c86);outline-offset:2px}
+@media (max-width:600px){.klp-fab .klp-fab-t{display:none}.klp-fab{padding:12px 14px;font-size:1.1rem}}
+body.proj .klp-fab{display:none}
+@media print{.klp-fab{display:none !important}}
+.klp-req label .opt{font-weight:400;color:var(--muted,#667085)}
+.klp-req .box,.kl-modal .box.klp-req{max-width:520px;max-height:calc(100vh - 32px);overflow:auto}
+.klp-req textarea,.klp-req input,.klp-req select{font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:0;padding:8px 10px}
+.klp-req textarea{resize:vertical}
+.klp-req label{margin-bottom:5px}
+
+/* Donker thema (enkel op scherm; afdrukken blijft licht) */
+@media screen{
+  :root[data-theme=dark]{
+    color-scheme:dark;
+    --bg:#0f131a; --card:#171c26; --ink:#e6e9ef; --muted:#9aa3b2; --line:#2a3242;
+    --accent2:color-mix(in srgb,var(--accent) 22%,#171c26);
+    --bio2:#16301f; --chem2:#11292c;
+  }
+  :root[data-theme=dark][data-accent]{--accent2:color-mix(in srgb,var(--accent) 22%,#171c26)}
+  [data-theme=dark] body{background:var(--bg);color:var(--ink)}
+  [data-theme=dark] a{color:color-mix(in srgb,var(--accent) 65%,#fff)}
+  [data-theme=dark] input,[data-theme=dark] select,[data-theme=dark] textarea{background:#11151d;color:var(--ink);border-color:var(--line)}
+  [data-theme=dark] .btn,[data-theme=dark] .tabs button,[data-theme=dark] .kl-bar button,[data-theme=dark] button.ghost{background:var(--card);color:var(--ink)}
+  [data-theme=dark] .btn{color:color-mix(in srgb,var(--accent) 60%,#fff)}
+  [data-theme=dark] .btn.pri,[data-theme=dark] .tabs button.on{background:var(--accent);color:#fff}
+  [data-theme=dark] .kl-back{color:color-mix(in srgb,var(--accent) 65%,#fff)}
+  [data-theme=dark] .sol{background:var(--card);border-color:var(--line)}
+  [data-theme=dark] .step h4{color:color-mix(in srgb,var(--accent) 60%,#fff)}
+  [data-theme=dark] .kl-modal .box{background:var(--card);color:var(--ink)}
+  [data-theme=dark] .msg.err{background:#3a1520;color:#ffb3c4}
+  [data-theme=dark] .msg.note{background:#3a2412;color:#ffd2a8}
+  [data-theme=dark] .msg.info{background:#11292c;color:#a8e3e8}
+  [data-theme=dark] .msg.ok{background:#12301e;color:#a7e8bf}
+  [data-theme=dark] .ice th{background:#1e2533}
+  [data-theme=dark] .ice td.l{background:#1a202c}
+  [data-theme=dark] .ice th,[data-theme=dark] .ice td{border-color:var(--line)}
+  [data-theme=dark] .kl-modal .qr svg{background:#fff;border-radius:8px}
+  /* SVG grafieken uit KL.chart */
+  [data-theme=dark] svg rect[fill="#fafbfc"]{fill:#11151d;stroke:var(--line)}
+  [data-theme=dark] svg line[stroke="#eceef2"]{stroke:#222a38}
+  [data-theme=dark] svg text[fill="#1b2130"],[data-theme=dark] svg text[fill="#111"]{fill:var(--ink)}
+  [data-theme=dark] svg circle[fill="#111"]{fill:var(--ink)}
+  [data-theme=dark] .scale .mark{background:#fff}
+  [data-theme=dark] .klp-fab{box-shadow:0 6px 20px rgba(0,0,0,.45)}
+  /* Tools met eigen kleuren */
+  :root[data-theme=dark] input,:root[data-theme=dark] select,:root[data-theme=dark] textarea{background:#11151d;color:var(--ink)}
+  :root[data-theme=dark] .btn[style*="#fff"]{background:var(--card) !important;color:color-mix(in srgb,var(--accent) 60%,#fff) !important}
+  :root[data-theme=dark] .msg[style*="#f7f9fa"]{background:#1e2533 !important}
+  :root[data-theme=dark] .ind-ok{background:#12301e}
+  :root[data-theme=dark] .clickable span:hover{background:#2a3242}
+  :root[data-theme=dark]{--cds:#1c2b4a;--cds2:#2a3d66;--mut:#8a6a00;--intron:#ff6b6b}
+  :root[data-theme=dark] .v-ok{background:#12301e;border-color:#1f5a36}
+  :root[data-theme=dark] .v-warn{background:#3a2412;border-color:#6b3d17}
+  :root[data-theme=dark] .v-bad{background:#3a1520;border-color:#6b2338}
+  :root[data-theme=dark] .v-neutral{background:#1e2533}
+  :root[data-theme=dark] tr.correct td{background:#1c2b4a}
+}

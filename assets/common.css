@@ -1,0 +1,103 @@
+/* Klaslab · gedeelde stijl */
+:root{
+  --bg:#f5f6f8; --card:#fff; --ink:#1b2130; --muted:#667085; --line:#e2e5ea;
+  --accent:#0e7c86; --accent2:#e6f4f5; --ok:#1f8a4c; --warn:#b54708; --bad:#c01048;
+  --acid:#c01048; --base:#2457c5; --neutral:#667085;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+main{max-width:1040px;margin:0 auto;padding:18px 16px 64px}
+a{color:var(--accent)}
+h1{font-size:1.65rem;margin:0 0 4px}
+h2{font-size:1.08rem;margin:0 0 12px}
+h3{font-size:.98rem;margin:16px 0 8px}
+.sub{color:var(--muted);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:16px}
+label{font-weight:600;font-size:.86rem;display:block;margin-bottom:5px}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:15px;background:#fff;font-family:inherit;color:inherit}
+input[type=checkbox],input[type=radio]{width:auto}
+input[type=range]{padding:0}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.hint{font-size:.83rem;color:var(--muted);margin:6px 0 0}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.btn{font:inherit;font-weight:600;font-size:.88rem;padding:7px 13px;border-radius:8px;border:1px solid var(--accent);background:#fff;color:var(--accent);cursor:pointer}
+.btn.pri{background:var(--accent);color:#fff}
+.btn:disabled{opacity:.45;cursor:default}
+.hidden{display:none !important}
+.msg{padding:10px 12px;border-radius:8px;margin-top:12px;font-size:.9rem}
+.msg.err{background:#fff1f3;color:var(--bad)}
+.msg.note{background:#fff7ed;color:#7a2e0b}
+.msg.info{background:#eef7f8;color:#0b4f55}
+.msg.ok{background:#effaf3;color:#14532d}
+.chip{display:inline-block;font-weight:700;font-size:.8rem;padding:2px 10px;border-radius:99px;color:#fff;white-space:nowrap}
+.c-zuur{background:var(--acid)}.c-base{background:var(--base)}.c-neutraal{background:var(--neutral)}
+.c-ok{background:var(--ok)}.c-warn{background:var(--warn)}.c-bad{background:var(--bad)}
+table.list{width:100%;border-collapse:collapse;font-size:.9rem}
+table.list th,table.list td{text-align:left;padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+table.list th{font-size:.78rem;color:var(--muted)}
+.scroll{overflow-x:auto}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.tabs button{font:inherit;font-weight:600;font-size:.9rem;padding:7px 13px;border-radius:99px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+.tabs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:28px}
+
+/* Uitwerking */
+.sol{border:1px solid #cfe3e5;border-radius:10px;overflow:hidden;background:#fff}
+.sol .head{background:var(--accent);color:#fff;font-weight:700;font-size:.8rem;letter-spacing:.06em;padding:6px 14px}
+.sol .body{padding:14px 16px}
+.kv{display:grid;grid-template-columns:120px 1fr;gap:6px 12px;margin-bottom:6px}
+.kv .k{font-weight:700;font-size:.78rem;letter-spacing:.05em;color:var(--muted);padding-top:3px}
+.step{margin:14px 0 0}
+.step h4{margin:0 0 6px;font-size:.92rem;color:var(--accent)}
+.eq{font-size:1.02rem;margin:6px 0;line-height:2.4}
+.frac{display:inline-flex;flex-direction:column;text-align:center;vertical-align:middle;margin:0 3px;line-height:1.35}
+.frac>span{padding:0 4px}
+.frac>span:first-child{border-bottom:1.5px solid currentColor}
+.ice{border-collapse:collapse;margin:6px 0;font-size:.92rem}
+.ice th,.ice td{border:1px solid #cfd6de;padding:6px 12px;text-align:center}
+.ice th{background:#eef2f5;font-weight:600}
+.ice td.l{background:#f7f9fa;font-weight:600;text-align:left}
+.result{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}
+.big{flex:1 1 150px;border-radius:10px;padding:12px 14px;background:var(--accent2)}
+.big .lab{font-size:.78rem;color:var(--muted);font-weight:600}
+.big .val{font-size:1.5rem;font-weight:800}
+.scale{height:14px;border-radius:99px;margin:16px 0 4px;position:relative;
+  background:linear-gradient(90deg,#d7263d,#f46036,#f5b700,#8ac926,#2ec4b6,#1982c4,#4f3fbf,#6a1b9a)}
+.scale .mark{position:absolute;top:-7px;width:4px;height:28px;background:#111;border-radius:2px;transform:translateX(-2px)}
+.scale-l{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted)}
+
+/* Werkbalk */
+.kl-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.kl-back{color:var(--accent);text-decoration:none;font-weight:600;font-size:.9rem}
+.kl-bar{display:flex;gap:6px;flex-wrap:wrap}
+.kl-bar button{font:inherit;font-size:.82rem;font-weight:600;padding:6px 11px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+.kl-bar button:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Modaal venster */
+.kl-modal{position:fixed;inset:0;background:rgba(15,20,30,.55);display:grid;place-items:center;z-index:50;padding:16px}
+.kl-modal .box{background:#fff;border-radius:14px;max-width:440px;width:100%;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.kl-modal .qr{display:grid;place-items:center;margin:14px 0}
+.kl-modal .qr svg{width:220px;height:220px}
+.kl-modal .x{float:right;border:0;background:none;font-size:1.4rem;cursor:pointer;line-height:1;color:var(--muted)}
+
+/* Projectie */
+body.proj{font-size:21px;background:#fff}
+body.proj main{max-width:1300px}
+body.proj .no-proj{display:none !important}
+body.proj .eq{font-size:1.25rem}
+body.proj .proj-hide{display:none !important}
+.kl-projbar{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#1b2130;color:#fff;border-radius:99px;padding:8px 10px;display:flex;gap:8px;align-items:center;z-index:40;box-shadow:0 10px 30px rgba(0,0,0,.25);font-size:15px}
+.kl-projbar button{font:inherit;font-weight:600;border:0;border-radius:99px;padding:8px 14px;cursor:pointer;background:#2f3a52;color:#fff}
+.kl-projbar button.pri{background:var(--accent)}
+
+/* Afdrukken */
+@media print{
+  body{background:#fff;font-size:12pt}
+  .no-print,.kl-top,.tabs,.kl-projbar,footer{display:none !important}
+  .card{border:0;padding:0;margin:0 0 12pt}
+  .sol{break-inside:avoid}
+  main{max-width:none;padding:0}
+}

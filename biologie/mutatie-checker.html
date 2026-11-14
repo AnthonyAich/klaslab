@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mutatie checker · Klaslab</title>
+<link rel="stylesheet" href="../assets/common.css">
+<link rel="stylesheet" href="../assets/personal.css">
+<script src="../assets/config.js"></script>
+<script src="../assets/profile.js"></script>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --ink:#1b2130; --muted:#667085; --line:#e2e5ea;
+    --intron:#d62828; --accent:#2457c5; --mut:#ffd966; --cds:#eaf1ff; --cds2:#d6e3ff;
+    --ok:#1f8a4c; --warn:#b54708; --bad:#c01048;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  main{max-width:1040px;margin:0 auto;padding:28px 16px 64px}
+  h1{font-size:1.65rem;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 22px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:16px}
+  h2{font-size:1.08rem;margin:0 0 12px}
+  h3{font-size:.95rem;margin:16px 0 6px;color:var(--muted);font-weight:600}
+  label{font-weight:600;font-size:.88rem;display:block;margin-bottom:6px}
+  textarea{width:100%;min-height:96px;font:15px/1.55 var(--mono);padding:10px 12px;border:1px solid var(--line);border-radius:8px;resize:vertical}
+  textarea:focus,select:focus,input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:14px}
+  select,input[type=number]{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:15px;background:#fff}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  button{font:inherit;font-weight:600;padding:9px 16px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+  button.ghost{background:#fff;color:var(--accent)}
+  .hint{font-size:.85rem;color:var(--muted);margin:8px 0 0}
+  .seq{font-family:var(--mono);font-size:15px;word-break:break-all;letter-spacing:.4px;line-height:1.9}
+  .seq span.i{color:var(--intron)}
+  .seq span.m{background:var(--mut);font-weight:800;text-decoration:underline}
+  .seq span.cds{background:var(--cds)}
+  .seq span.cds.alt{background:var(--cds2)}
+  .seq span.sc{color:var(--ok);font-weight:800}
+  .seq span.xc{color:var(--bad);font-weight:800}
+  .clickable span{cursor:pointer;border-radius:2px}
+  .clickable span:hover{background:#e8ecf3}
+  .clickable span.m:hover{background:var(--mut)}
+  .end{color:var(--muted);font-weight:600}
+  .steps{display:grid;grid-template-columns:150px 1fr;gap:4px 14px;align-items:start}
+  .steps .lab{font-size:.85rem;color:var(--muted);font-weight:600;padding-top:3px}
+  .steps .lab.bigl{color:var(--ink)}
+  .sep{grid-column:1/-1;border-top:1px solid var(--line);margin:8px 0}
+  .prot{font-family:var(--mono);font-size:14.5px}
+  .prot b{background:var(--mut)}
+  .verdict{border-radius:10px;padding:14px 16px;border:1px solid}
+  .verdict .tag{display:inline-block;font-weight:700;font-size:.8rem;padding:2px 9px;border-radius:99px;color:#fff;margin-bottom:6px}
+  .v-ok{background:#effaf3;border-color:#b7e4c7}.v-ok .tag{background:var(--ok)}
+  .v-warn{background:#fff7ed;border-color:#fed7aa}.v-warn .tag{background:var(--warn)}
+  .v-bad{background:#fff1f3;border-color:#fecdd6}.v-bad .tag{background:var(--bad)}
+  .v-neutral{background:#f2f4f7;border-color:var(--line)}.v-neutral .tag{background:var(--muted)}
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:.8rem;color:var(--muted);font-weight:600}
+  td.mono{font-family:var(--mono);font-size:.82rem;word-break:break-word}
+  tr.correct td{background:#f3f8ff}
+  .pill{display:inline-block;font-size:.78rem;font-weight:700;padding:1px 8px;border-radius:99px;color:#fff;white-space:nowrap}
+  .p-ok{background:var(--ok)}.p-warn{background:var(--warn)}.p-bad{background:var(--bad)}.p-neutral{background:var(--muted)}
+  .msg{padding:10px 12px;border-radius:8px;margin-top:10px;font-size:.9rem}
+  .msg.err{background:#fff1f3;color:var(--bad)}
+  .msg.note{background:#fff7ed;color:#7a2e0b}
+  .msg.info{background:#eef4ff;color:#1e3a8a}
+  ul.checks{margin:0;padding-left:18px}
+  ul.checks li{margin:2px 0}
+  .good{color:var(--ok);font-weight:700}.badc{color:var(--bad);font-weight:700}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.82rem;color:var(--muted);margin-top:10px}
+  .legend i{font-style:normal;font-family:var(--mono);padding:0 4px;border-radius:3px}
+  .hidden{display:none}
+  details summary{cursor:pointer;font-weight:600}
+  .scroll{overflow-x:auto}
+  footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:28px}
+  @media (max-width:640px){ .steps{grid-template-columns:1fr} .steps .lab{padding-top:8px} }
+</style>
+</head>
+<body>
+<main>
+  <div id="kl-top"></div>
+  <h1>Mutatie checker</h1>
+  <p class="sub">Controleer een meerkeuzevraag over transcriptie, splicing, translatie en puntmutaties. De tool rekent het juiste antwoord uit en toont wat leerlingen krijgen met de meest gemaakte denkfouten.</p>
+
+  <section class="card no-print" id="genCard">
+    <h2>Nieuwe vraag genereren</h2>
+    <p class="hint" style="margin:0 0 10px">De tool maakt een nieuw gen met exons, introns (GU…AG), startcodon en stopcodon, en kiest een mutatie met het gevolg dat jij wil. Er wordt gezocht naar een mutatie waarbij de denkfouten tot verschillende antwoorden leiden.</p>
+    <div class="grid">
+      <div><label for="gEx">Aantal exons</label><select id="gEx"><option>2</option><option selected>3</option><option>4</option></select></div>
+      <div><label for="gEff">Gewenst gevolg</label><select id="gEff">
+        <option value="Nonsense (korter)">nonsense: keten wordt korter</option>
+        <option value="Missense (even lang)">missense: ander aminozuur</option>
+        <option value="Stille mutatie">stille mutatie</option>
+        <option value="Geen effect (intron)">mutatie in een intron</option>
+        <option value="Geen effect (vóór start)">mutatie vóór het startcodon</option>
+        <option value="Stopcodon verloren">stopcodon verloren</option>
+        <option value="any">willekeurig</option></select></div>
+      <div><label for="gLen">Lengte eiwit (aminozuren)</label><select id="gLen"><option>3</option><option selected>4</option><option>5</option><option>6</option></select></div>
+    </div>
+    <div class="btns"><button class="btn pri" id="gGo" style="background:var(--accent);color:#fff;border-color:var(--accent)">🎲 Genereer vraag</button></div>
+    <div id="gMsg"></div>
+  </section>
+
+  <section class="card">
+    <h2>1. Sequentie</h2>
+    <label for="seq">DNA sequentie</label>
+    <textarea id="seq" spellcheck="false" placeholder="Bv. TGGTCAACC[CTGAAGTCAC]CTTGTA[CTTGAGCTTAC]AGCCAT..."></textarea>
+    <p class="hint">Duid introns aan met <b>[vierkante haken]</b> of in <b>kleine letters</b>. Exons in hoofdletters. Spaties, cijfers, 5′ en 3′ worden genegeerd.</p>
+
+    <div class="grid">
+      <div>
+        <label for="strand">Welke streng is dit?</label>
+        <select id="strand">
+          <option value="matrijs">Matrijsstreng (template)</option>
+          <option value="codon">Codogene streng (coderend)</option>
+        </select>
+      </div>
+      <div>
+        <label for="orient">Geschreven in richting</label>
+        <select id="orient">
+          <option value="53">5′ → 3′</option>
+          <option value="35">3′ → 5′</option>
+        </select>
+      </div>
+    </div>
+    <div class="btns">
+      <button id="go">Analyseren</button>
+      <button id="example" class="ghost">Voorbeeld laden</button>
+    </div>
+    <div id="parseMsg"></div>
+  </section>
+
+  <section class="card">
+    <h2>2. Puntmutatie</h2>
+    <p class="hint" style="margin:0 0 10px">Klik op een nucleotide in de sequentie hieronder, of vul de positie in.</p>
+    <div id="inputSeq" class="seq clickable"><span class="end">Nog geen sequentie.</span></div>
+    <div class="grid">
+      <div>
+        <label for="pos">Positie (1 = eerste letter zoals ingegeven)</label>
+        <input id="pos" type="number" min="1" placeholder="bv. 23">
+      </div>
+      <div>
+        <label for="newBase">Wordt vervangen door</label>
+        <select id="newBase"><option>A</option><option>C</option><option>G</option><option selected>T</option></select>
+      </div>
+    </div>
+    <div id="mutMsg"></div>
+  </section>
+
+  <section class="card hidden" id="verdictCard">
+    <h2>3. Gevolg van de mutatie</h2>
+    <div id="verdict"></div>
+  </section>
+
+  <section class="card hidden" id="stepsCard">
+    <h2>4. Uitwerking</h2>
+    <div id="steps" class="steps"></div>
+    <div class="legend">
+      <span><i style="color:var(--intron)">ACG</i> intron</span>
+      <span><i style="background:var(--mut);font-weight:800">G</i> mutatie</span>
+      <span><i style="background:var(--cds)">AUG</i><i style="background:var(--cds2)">GCU</i> codons</span>
+      <span><i style="color:var(--ok);font-weight:800">AUG</i> start</span>
+      <span><i style="color:var(--bad);font-weight:800">UGA</i> stop</span>
+    </div>
+  </section>
+
+  <section class="card hidden" id="spliceCard">
+    <h2>5. Controle van de opbouw</h2>
+    <div id="splice"></div>
+  </section>
+
+  <section class="card hidden" id="errCard">
+    <h2>6. Denkfouten en distractors</h2>
+    <p class="hint" style="margin:0 0 10px">Zo redeneert een leerling die één typische fout maakt. Handig om te checken of elke distractor echt uit een denkfout volgt, en of geen enkele denkfout toch bij het juiste antwoord uitkomt.</p>
+    <div class="scroll"><table id="errTable"></table></div>
+    <div id="errMsg"></div>
+    <div class="btns no-print"><button class="btn" id="mcExport" style="background:#fff;color:var(--accent)">🖨 Exporteer als meerkeuzevraag met sleutel</button><button class="btn" id="mcCopy" style="background:#fff;color:var(--accent)">📋 Kopieer vraag als tekst</button></div>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary>Hoe werkt het?</summary>
+      <ul class="checks" style="margin-top:10px">
+        <li>De matrijsstreng wordt complementair en antiparallel overgeschreven; de codogene streng wordt letterlijk overgenomen met U in plaats van T.</li>
+        <li>Introns worden verwijderd. Elk intron wordt gecontroleerd op de klassieke GU…AG grenzen.</li>
+        <li>De translatie start bij de eerste AUG in het mRNA en stopt bij UAA, UAG of UGA (standaard genetische code).</li>
+        <li>Mutaties in een splice site worden gemeld, maar de tool rekent verder alsof de splicing normaal verloopt.</li>
+        <li>Alles draait lokaal in je browser; er wordt niets verstuurd.</li>
+      </ul>
+    </details>
+  </section>
+
+  <footer>Klaslab · alles draait in je browser</footer>
+</main>
+
+<script src="../assets/qrcode.js"></script>
+<script src="../assets/common.js"></script>
+<script>
+/* ---------- Biologie ---------- */
+const COMP = {A:'T', T:'A', G:'C', C:'G'};
+const AA3 = {F:'Phe',L:'Leu',I:'Ile',M:'Met',V:'Val',S:'Ser',P:'Pro',T:'Thr',A:'Ala',Y:'Tyr',H:'His',
+             Q:'Gln',N:'Asn',K:'Lys',D:'Asp',E:'Glu',C:'Cys',W:'Trp',R:'Arg',G:'Gly','*':'stop'};
+const CODE = {};
+(() => {
+  const B = 'UCAG', T = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG';
+  let k = 0;
+  for (const a of B) for (const b of B) for (const c of B) CODE[a + b + c] = T[k++];
+})();
+
+function parse(raw) {
+  const seq = [], bad = new Set();
+  let bracket = false;
+  for (const ch of raw) {
+    if (ch === '[') { bracket = true; continue; }
+    if (ch === ']') { bracket = false; continue; }
+    if (!/[a-z]/i.test(ch)) continue;
+    const up = ch.toUpperCase();
+    if ('ACGTU'.includes(up)) seq.push({ b: up === 'U' ? 'T' : up, intron: bracket || ch !== up });
+    else bad.add(ch);
+  }
+  return { seq, bad: [...bad] };
+}
+
+/* Correcte werkwijze voor een gegeven streng en schrijfrichting */
+function correctOpts(strand, orient) {
+  const template = strand === 'matrijs';
+  return { complement: template, reverse: (orient === '53') === template, splice: true };
+}
+
+/* Transcriptie (+ splicing) + translatie. Volgorde van pre en mrna = 5'→3' zoals de leerling leest. */
+function build(seq, o) {
+  let pre = seq.map((x, i) => ({ b: o.complement ? COMP[x.b] : x.b, intron: x.intron, src: i }));
+  if (o.reverse) pre.reverse();
+  pre.forEach(x => { if (x.b === 'T') x.b = 'U'; });
+  const mrna = o.splice ? pre.filter(x => !x.intron) : pre;
+  return { pre, mrna, tr: translate(mrna), splice: o.splice, reverse: o.reverse };
+}
+
+function translate(m) {
+  const s = m.map(x => x.b).join('');
+  const start = s.indexOf('AUG');
+  if (start < 0) return { start: -1, end: -1, aa: [], hasStop: false };
+  const aa = [];
+  let i = start, hasStop = false;
+  for (; i + 3 <= s.length; i += 3) {
+    const c = s.substr(i, 3), a = CODE[c];
+    aa.push({ c, a, pos: i });
+    if (a === '*') { hasStop = true; i += 3; break; }
+  }
+  return { start, end: i, aa, hasStop };
+}
+
+const protein = tr => tr.aa.filter(x => x.a !== '*').map(x => AA3[x.a]);
+const protStr = tr => {
+  if (tr.start < 0) return 'geen startcodon';
+  const p = protein(tr).join('-');
+  return p + (tr.hasStop ? ' stop' : ' (geen stopcodon)');
+};
+
+function intronRuns(pre) {
+  const r = []; let s = -1;
+  pre.forEach((x, i) => {
+    if (x.intron && s < 0) s = i;
+    if (!x.intron && s >= 0) { r.push([s, i - 1]); s = -1; }
+  });
+  if (s >= 0) r.push([s, pre.length - 1]);
+  return r;
+}
+
+/* Waar ligt de gemuteerde base? */
+function locate(res, pos, wtTr) {
+  const pi = res.pre.findIndex(x => x.src === pos);
+  if (res.splice && res.pre[pi].intron) {
+    let s = pi; while (s > 0 && res.pre[s - 1].intron) s--;
+    let e = pi; while (e < res.pre.length - 1 && res.pre[e + 1].intron) e++;
+    return { type: 'intron', edge: (pi - s < 2) || (e - pi < 2) };
+  }
+  const mi = res.mrna.indexOf(res.pre[pi]);
+  if (wtTr.start < 0) return { type: 'nocds', mi };
+  if (mi < wtTr.start) return { type: 'utr5', mi };
+  if (mi >= wtTr.end) return { type: 'utr3', mi };
+  return { type: 'cds', mi, codon: Math.floor((mi - wtTr.start) / 3) };
+}
+
+function classify(wt, mu, loc) {
+  const a = protein(wt.tr), b = protein(mu.tr);
+  const W = wt.tr, M = mu.tr;
+  const cw = loc.codon != null ? W.aa[loc.codon] : null;
+  const cm = loc.codon != null ? M.aa[loc.codon] : null;
+  const codonTxt = (cw && cm) ? `Codon ${loc.codon + 1}: ${cw.c} (${AA3[cw.a]}) wordt ${cm.c} (${AA3[cm.a]}).` : '';
+
+  if (W.start < 0 && M.start < 0) return { kind: 'neutral', label: 'Geen eiwit', text: 'Er staat geen AUG in het mRNA. In beide gevallen wordt er geen eiwit gevormd.' };
+  if (W.start < 0) return { kind: 'warn', label: 'Nieuw startcodon', text: 'De mutatie maakt een AUG aan: er ontstaat een eiwit dat er eerst niet was.' };
+  if (M.start < 0) return { kind: 'bad', label: 'Startcodon verloren', text: 'Na de mutatie staat er geen AUG meer in het mRNA, dus er is geen translatie.' };
+  if (M.start !== W.start) {
+    return { kind: 'bad', label: 'Ander startpunt',
+      text: `De translatie start nu op positie ${M.start + 1} in plaats van ${W.start + 1} van het mRNA (${M.start < W.start ? 'een nieuwe AUG ervoor' : 'de oorspronkelijke AUG is weg'}).` };
+  }
+  if (a.join() === b.join() && W.hasStop === M.hasStop) {
+    if (loc.type === 'intron') {
+      return loc.edge
+        ? { kind: 'warn', label: 'Splice site geraakt', text: 'De mutatie ligt in een intron, maar in de GU of AG grens. In werkelijkheid kan de splicing daardoor mislopen. Deze tool rekent verder alsof de splicing normaal verloopt; dan blijft de aminozuursequentie ongewijzigd.' }
+        : { kind: 'ok', label: 'Geen effect (intron)', text: 'De mutatie ligt in een intron en wordt weggeknipt bij de splicing. De aminozuursequentie blijft ongewijzigd.' };
+    }
+    if (loc.type === 'utr5') return { kind: 'ok', label: 'Geen effect (vóór start)', text: 'De mutatie ligt in het mRNA vóór het startcodon (5′ UTR) en wordt niet vertaald. De aminozuursequentie blijft ongewijzigd.' };
+    if (loc.type === 'utr3') return { kind: 'ok', label: 'Geen effect (na stop)', text: 'De mutatie ligt na het stopcodon (3′ UTR) en wordt niet vertaald. De aminozuursequentie blijft ongewijzigd.' };
+    return { kind: 'ok', label: 'Stille mutatie', text: `${codonTxt} Beide codons coderen voor hetzelfde aminozuur, dus de aminozuursequentie blijft ongewijzigd.` };
+  }
+  if (b.length < a.length && M.hasStop && cm && cm.a === '*') {
+    return { kind: 'bad', label: 'Nonsense (korter)', text: `${codonTxt} Er ontstaat een vroegtijdig stopcodon: de keten telt nu ${b.length} in plaats van ${a.length} aminozuren.` };
+  }
+  if (b.length === a.length && W.hasStop === M.hasStop) {
+    return { kind: 'warn', label: 'Missense (even lang)', text: `${codonTxt} Eén aminozuur verandert; de keten blijft ${a.length} aminozuren lang.` };
+  }
+  if (b.length > a.length || (W.hasStop && !M.hasStop)) {
+    return { kind: 'bad', label: 'Stopcodon verloren', text: `${codonTxt} Het stopcodon verdwijnt, dus de translatie loopt door: ${b.length} in plaats van ${a.length} aminozuren${M.hasStop ? '' : ', en er volgt geen nieuw stopcodon in de gegeven sequentie'}.` };
+  }
+  return { kind: 'bad', label: 'Gewijzigd', text: `De aminozuursequentie verandert: ${a.length} → ${b.length} aminozuren.` };
+}
+
+
+function scenarios(seq, mutPos, newBase, strand, orient) {
+  const o = correctOpts(strand, orient);
+  const other = strand === 'matrijs' ? 'codon' : 'matrijs';
+  const mseq = seq.map((x, i) => i === mutPos ? { ...x, b: newBase } : x);
+  const wrongCopy = seq.map((x, i) => i === mutPos ? { ...x, b: COMP[newBase] } : x);
+  const scen = [
+    { id: 'ok', name: 'Correct', desc: 'Juiste werkwijze', o, m: mseq, correct: true },
+    { id: 'anti', name: 'Antiparallel vergeten', desc: 'Complement gemaakt, maar in de verkeerde richting gelezen', o: { ...o, reverse: !o.reverse }, m: mseq },
+    { id: 'streng', name: 'Strengen verwisseld', desc: strand === 'matrijs' ? 'Matrijsstreng gelezen alsof het de codogene streng is' : 'Codogene streng gebruikt als matrijs', o: correctOpts(other, orient), m: mseq },
+    { id: 'intron', name: 'Introns niet verwijderd', desc: 'Pre-mRNA meteen vertaald', o: { ...o, splice: false }, m: mseq },
+    { id: 'copy', name: 'Mutatie verkeerd overgezet', desc: strand === 'matrijs' ? `De nieuwe ${newBase} letterlijk overgenomen in het mRNA (${newBase === 'T' ? 'U' : newBase} in plaats van ${COMP[newBase] === 'T' ? 'U' : COMP[newBase]})` : 'De nieuwe base toch nog gecomplementeerd', o, m: wrongCopy },
+  ];
+  return scen.map(s => {
+    const w = build(seq, s.o), m = build(s.m, s.o);
+    const v = classify(w, m, locate(m, mutPos, w.tr));
+    return { ...s, w, mm: m, v };
+  });
+}
+
+/* ---------- Vraaggenerator ---------- */
+const SENSE = Object.keys(CODE).filter(c => CODE[c] !== '*' && c !== 'AUG');
+const STOPS = ['UAA', 'UAG', 'UGA'];
+function rnd(r, n, alphabet = 'ACGU') { let s = ''; for (let i = 0; i < n; i++) s += alphabet[Math.floor(r() * alphabet.length)]; return s; }
+function makeGene(r, nEx, nAA) {
+  for (let t = 0; t < 500; t++) {
+    const utr5 = rnd(r, 6 + Math.floor(r() * 5));
+    const cds = 'AUG' + Array.from({ length: nAA - 1 }, () => KL.pick(r, SENSE)).join('') + KL.pick(r, STOPS);
+    const utr3 = rnd(r, 5 + Math.floor(r() * 5));
+    const m = utr5 + cds + utr3;
+    if (m.indexOf('AUG') !== utr5.length) continue;
+    // knippunten voor exons
+    const cuts = new Set();
+    while (cuts.size < nEx - 1) cuts.add(3 + Math.floor(r() * (m.length - 6)));
+    const cs = [...cuts].sort((a, b) => a - b);
+    if (cs.some((c, i) => i && c - cs[i - 1] < 4)) continue;
+    const exons = []; let prev = 0; cs.forEach(c => { exons.push(m.slice(prev, c)); prev = c; }); exons.push(m.slice(prev));
+    const introns = exons.slice(1).map(() => 'GU' + rnd(r, 4 + Math.floor(r() * 5)) + 'AG');
+    // pre-mRNA met vlaggen (codogene richting)
+    const pre = [];
+    exons.forEach((e, i) => { [...e].forEach(b => pre.push({ b, intron: false })); if (i < introns.length) [...introns[i]].forEach(b => pre.push({ b, intron: true })); });
+    // matrijsstreng 5'→3' = omgekeerd complement
+    const toDNA = b => b === 'U' ? 'T' : b;
+    const tmpl = pre.map(x => ({ b: COMP[toDNA(x.b)], intron: x.intron })).reverse();
+    // de juiste uitwerking moet hetzelfde mRNA geven
+    const res = build(tmpl, correctOpts('matrijs', '53'));
+    if (res.mrna.map(x => x.b).join('') !== m) continue;
+    return tmpl;
+  }
+  return null;
+}
+function seqToText(tmpl) {
+  let s = "5'-", inI = false;
+  tmpl.forEach(x => { if (x.intron && !inI) { s += '['; inI = true; } if (!x.intron && inI) { s += ']'; inI = false; } s += x.b; });
+  if (inI) s += ']';
+  return s + "-3'";
+}
+function generateQuestion() {
+  const r = KL.rng(KL.newSeed());
+  const want = $('gEff').value, nEx = +$('gEx').value, nAA = +$('gLen').value;
+  for (let t = 0; t < 60; t++) {
+    const tmpl = makeGene(r, nEx, nAA);
+    if (!tmpl) continue;
+    const cands = [];
+    tmpl.forEach((x, i) => 'ACGT'.split('').forEach(nb => {
+      if (nb === x.b) return;
+      const res = scenarios(tmpl, i, nb, 'matrijs', '53');
+      const lab = res[0].v.label;
+      if (want !== 'any' && lab !== want) return;
+      if (lab === 'Splice site geraakt' || lab === 'Gewijzigd') return;
+      const labels = new Set(res.map(q => q.v.label));
+      const clash = res.slice(1).some(q => q.v.label === lab);
+      cands.push({ i, nb, score: labels.size * 2 - (clash ? 5 : 0) });
+    }));
+    if (!cands.length) continue;
+    const best = Math.max(...cands.map(c => c.score));
+    if (best < 6 && t < 40) continue;
+    const pickc = KL.pick(r, cands.filter(c => c.score === best));
+    $('seq').value = seqToText(tmpl);
+    $('strand').value = 'matrijs'; $('orient').value = '53'; $('newBase').value = pickc.nb;
+    mutPos = pickc.i; $('pos').value = pickc.i + 1;
+    $('gMsg').innerHTML = '';
+    run();
+    document.getElementById('verdictCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  $('gMsg').innerHTML = '<div class="msg note">Geen geschikte mutatie gevonden met deze instellingen. Probeer opnieuw of kies een ander gevolg.</div>';
+}
+
+/* ---------- Export als meerkeuzevraag ---------- */
+const OPT = {
+  'Nonsense (korter)': 'De aminozuursequentie wordt korter, want het nieuwe triplet wordt een stopcodon.',
+  'Missense (even lang)': 'De aminozuursequentie blijft even lang, want het nieuwe triplet codeert voor een ander aminozuur.',
+  'Stille mutatie': 'De aminozuursequentie blijft ongewijzigd, want het nieuwe triplet codeert voor hetzelfde aminozuur als het oorspronkelijke triplet.',
+  'Geen effect (vóór start)': 'De aminozuursequentie blijft ongewijzigd, want de gemuteerde nucleotide ligt vóór de plaats waar de translatie begint en wordt dus niet vertaald.',
+  'Geen effect (na stop)': 'De aminozuursequentie blijft ongewijzigd, want de gemuteerde nucleotide ligt na het stopcodon en wordt dus niet vertaald.',
+  'Geen effect (intron)': 'De aminozuursequentie blijft ongewijzigd, want de mutatie ligt in een intron en wordt weggeknipt.',
+  'Stopcodon verloren': 'De aminozuursequentie wordt langer, want het stopcodon verdwijnt.',
+  'Startcodon verloren': 'Er wordt geen eiwit meer gevormd, want het startcodon verdwijnt.',
+  'Ander startpunt': 'De aminozuursequentie verandert volledig, want de translatie start op een andere plaats.',
+};
+const FILL = ['Nonsense (korter)', 'Missense (even lang)', 'Stille mutatie', 'Geen effect (vóór start)', 'Geen effect (intron)', 'Stopcodon verloren'];
+function buildMCQ() {
+  const L = window._last; if (!L) return null;
+  const okLab = L.results[0].v.label;
+  if (!OPT[okLab]) return null;
+  const opts = [{ lab: okLab, ok: true, why: 'Juist.' }];
+  L.results.slice(1).forEach(q => { if (OPT[q.v.label] && !opts.some(o => o.lab === q.v.label)) opts.push({ lab: q.v.label, why: `Fout: ${q.name}. ${q.desc}.` }); });
+  FILL.forEach(f => { if (opts.length < 4 && !opts.some(o => o.lab === f)) opts.push({ lab: f, why: 'Fout: opvulantwoord, hoort niet bij een typische denkfout.' }); });
+  const sh = KL.shuffle(KL.rng(KL.newSeed()), opts.slice(0, 4));
+  return { opts: sh, letter: 'ABCD'[sh.findIndex(o => o.ok)] };
+}
+function mcHTML(Q) {
+  const L = window._last;
+  const arr = L.seq.map((x, i) => ({ ...x, src: i }));
+  const nEx = arr.reduce((n, x, i) => n + (!x.intron && (i === 0 || arr[i - 1].intron) ? 1 : 0), 0), nIn = nEx - 1;
+  const strandTxt = L.strand === 'matrijs' ? 'de matrijsstreng' : 'de codogene streng';
+  return `<p>Een onderzoeker bestudeert een gen dat bestaat uit ${nEx} exons en ${nIn} introns. Hieronder staat de DNA sequentie van ${strandTxt} van het gen. De exons staan in het zwart en de introns in het rood.</p>
+    <div class="seq" style="margin:10px 0"><span class="end">${L.orient === '53' ? "5'" : "3'"}-</span>${seqHTML(arr, { mut: L.mutPos })}<span class="end">-${L.orient === '53' ? "3'" : "5'"}</span></div>
+    <p>Bij een variant van dit gen vindt de onderzoeker een puntmutatie in ${strandTxt}: de aangeduide nucleotide (${L.seq[L.mutPos].b}) is vervangen door ${L.newBase}.</p>
+    <p><b>Wat is het gevolg van de mutatie voor de aminozuursequentie?</b></p>
+    ${Q.opts.map((o, i) => `<p><b>${'ABCD'[i]}.</b> ${OPT[o.lab]}</p>`).join('')}`;
+}
+
+/* ---------- Weergave ---------- */
+function seqHTML(arr, { mut = null, tr = null } = {}) {
+  return arr.map((x, i) => {
+    const c = [];
+    if (x.intron) c.push('i');
+    if (mut !== null && x.src === mut) c.push('m');
+    if (tr && tr.start >= 0 && i >= tr.start && i < tr.end) {
+      c.push('cds'); if (((i - tr.start) / 3 | 0) % 2) c.push('alt');
+      if (i < tr.start + 3) c.push('sc');
+      if (tr.hasStop && i >= tr.end - 3) c.push('xc');
+    }
+    return `<span class="${c.join(' ')}">${x.b}</span>`;
+  }).join('');
+}
+const wrap = (inner, l = '5′', r = '3′') => `<div class="seq"><span class="end">${l}-</span>${inner}<span class="end">-${r}</span></div>`;
+
+function protHTML(res, mutCodon) {
+  const tr = res.tr;
+  if (tr.start < 0) return '<div class="prot">Geen AUG gevonden: geen translatie.</div>';
+  const cods = tr.aa.map((x, k) => k === mutCodon ? `<b>${x.c}</b>` : x.c).join(' ');
+  const aas = tr.aa.map((x, k) => k === mutCodon ? `<b>${AA3[x.a]}</b>` : AA3[x.a]).join('-');
+  return `<div class="prot">${cods}<br>→ ${aas}${tr.hasStop ? '' : ' <span class="badc">(geen stopcodon)</span>'}</div>`;
+}
+
+/* ---------- App ---------- */
+const $ = id => document.getElementById(id);
+let mutPos = null;
+
+function run() {
+  const { seq, bad } = parse($('seq').value);
+  const strand = $('strand').value, orient = $('orient').value;
+  const pm = [];
+  if (bad.length) pm.push(`<div class="msg err">Onbekende letters genegeerd: ${bad.join(', ')}</div>`);
+  if (($('seq').value.match(/\[/g) || []).length !== ($('seq').value.match(/\]/g) || []).length)
+    pm.push('<div class="msg err">Het aantal [ en ] klopt niet.</div>');
+  $('parseMsg').innerHTML = pm.join('');
+
+  if (mutPos !== null && mutPos >= seq.length) mutPos = null;
+  const inputArr = seq.map((x, i) => ({ ...x, src: i }));
+  const wl = orient === '53' ? ['5′', '3′'] : ['3′', '5′'];
+  $('inputSeq').innerHTML = seq.length
+    ? `<span class="end">${wl[0]}-</span>` + seqHTML(inputArr, { mut: mutPos }) +`<span class="end">-${wl[1]}</span>`
+    : '<span class="end">Nog geen sequentie.</span>';
+  // posities koppelen voor klikken
+  [...$('inputSeq').querySelectorAll('span:not(.end)')].forEach((el, i) => { el.dataset.i = i; el.title = 'Positie ' + (i + 1); });
+
+  ['verdictCard', 'stepsCard', 'spliceCard', 'errCard'].forEach(id => $(id).classList.add('hidden'));
+  $('mutMsg').innerHTML = '';
+  if (!seq.length) return;
+
+  const o = correctOpts(strand, orient);
+  const wt = build(seq, o);
+
+  /* Opbouw en splice sites */
+  const runs = intronRuns(wt.pre);
+  const nEx = wt.pre.reduce((n, x, i) => n + (!x.intron && (i === 0 || wt.pre[i - 1].intron) ? 1 : 0), 0);
+  let sp = `<p style="margin:0 0 8px">${nEx} exon${nEx === 1 ? '' : 's'} en ${runs.length} intron${runs.length === 1 ? '' : 's'} (geteld in de leesrichting van het mRNA).</p>`;
+  if (runs.length) {
+    sp += '<ul class="checks">' + runs.map(([s, e], k) => {
+      const st = wt.pre[s].b + (wt.pre[s + 1] ? wt.pre[s + 1].b : ''), en = (wt.pre[e - 1] ? wt.pre[e - 1].b : '') + wt.pre[e].b;
+      const ok = st === 'GU' && en === 'AG';
+      return `<li>Intron ${k + 1}: begint met <b>${st}</b>, eindigt op <b>${en}</b> → ${ok ? '<span class="good">GU…AG ✓</span>' : '<span class="badc">geen klassieke GU…AG grens</span>'}</li>`;
+    }).join('') + '</ul>';
+    if (wt.pre[0].intron || wt.pre[wt.pre.length - 1].intron) sp += '<div class="msg note">De sequentie begint of eindigt met een intron. Een gen begint en eindigt normaal met een exon.</div>';
+  }
+  if (wt.reverse) sp += '<div class="msg info">Het mRNA wordt in de omgekeerde volgorde van de ingegeven sequentie gelezen. Exon 1 ligt dus <b>rechts</b> in de sequentie zoals ze er staat. Teken je een figuur met exon 1 links, zeg dan dat die in de leesrichting van het mRNA getekend is.</div>';
+  const ups = wt.tr.start;
+  if (wt.tr.start < 0) sp += '<div class="msg err">Er staat geen AUG in het mRNA.</div>';
+  else if (!wt.tr.hasStop) sp += '<div class="msg note">Na het startcodon volgt geen stopcodon in het leesraam.</div>';
+  else sp += `<p style="margin:10px 0 0">Startcodon op positie ${ups + 1} van het mRNA, ${protein(wt.tr).length} aminozuren, daarna ${wt.tr.aa[wt.tr.aa.length - 1].c}.</p>`;
+  $('splice').innerHTML = sp;
+  $('spliceCard').classList.remove('hidden');
+
+  /* Zonder mutatie: enkel de uitwerking */
+  const newBase = $('newBase').value;
+  let mu = null, loc = null, verdict = null;
+  if (mutPos !== null) {
+    if (seq[mutPos].b === newBase) $('mutMsg').innerHTML = `<div class="msg note">Op positie ${mutPos + 1} staat al een ${newBase}. Kies een andere nucleotide.</div>`;
+    else $('mutMsg').innerHTML = `<div class="msg info">Positie ${mutPos + 1}: <b>${seq[mutPos].b}</b> wordt <b>${newBase}</b>${seq[mutPos].intron ? ' (in een intron)' : ''}.</div>`;
+    const mseq = seq.map((x, i) => i === mutPos ? { ...x, b: newBase } : x);
+    mu = build(mseq, o);
+    loc = locate(mu, mutPos, wt.tr);
+    verdict = classify(wt, mu, loc);
+    $('verdict').innerHTML = `<div class="verdict v-${verdict.kind}"><span class="tag">${verdict.label}</span><div>${verdict.text}</div>
+      <div class="prot" style="margin-top:8px">Voor: ${protStr(wt.tr)}<br>Na: ${protStr(mu.tr)}</div></div>`;
+    $('verdictCard').classList.remove('hidden');
+  }
+
+  /* Uitwerking stap voor stap */
+  const rows = [];
+  const block = (title, res, mut) => {
+    const codon = (mut !== null && loc && loc.codon != null) ? loc.codon : null;
+    rows.push(`<div class="lab bigl">${title}</div><div></div>`);
+    rows.push(`<div class="lab">Pre-mRNA</div>${wrap(seqHTML(res.pre, { mut }))}`);
+    rows.push(`<div class="lab">mRNA na splicing</div>${wrap(seqHTML(res.mrna, { mut, tr: res.tr }))}`);
+    rows.push(`<div class="lab">Translatie</div>${protHTML(res, codon)}`);
+  };
+  block(mu ? 'Voor mutatie' : 'Zonder mutatie', wt, mutPos);
+  if (mu) { rows.push('<div class="sep"></div>'); block('Na mutatie', mu, mutPos); }
+  $('steps').innerHTML = rows.join('');
+  $('stepsCard').classList.remove('hidden');
+
+  /* Denkfouten */
+  if (!mu || seq[mutPos].b === newBase) return;
+  const results = scenarios(seq, mutPos, newBase, strand, orient);
+  window._last = { seq, mutPos, newBase, strand, orient, results, wt, mu };
+  $('errTable').innerHTML = '<tr><th>Werkwijze</th><th>Voor</th><th>Na</th><th>Conclusie</th></tr>' +
+    results.map(r => `<tr class="${r.correct ? 'correct' : ''}"><td><b>${r.name}</b><br><span class="hint" style="margin:0">${r.desc}</span></td>
+      <td class="mono">${protStr(r.w.tr)}</td><td class="mono">${protStr(r.mm.tr)}</td>
+      <td><span class="pill p-${r.v.kind}">${r.v.label}</span></td></tr>`).join('');
+  const same = results.slice(1).filter(r => r.v.label === results[0].v.label);
+  $('errMsg').innerHTML = same.length
+    ? `<div class="msg note">Let op: ${same.map(r => '<b>' + r.name.toLowerCase() + '</b>').join(' en ')} leidt tot dezelfde conclusie als de juiste werkwijze. Een leerling met die denkfout kiest dan toch het juiste antwoord.</div>`
+    : '<div class="msg info">Geen enkele denkfout leidt tot dezelfde conclusie als het juiste antwoord. Goed onderscheidend.</div>';
+  $('errCard').classList.remove('hidden');
+}
+
+if (typeof document !== 'undefined') {
+  $('go').addEventListener('click', run);
+  ['strand', 'orient', 'newBase'].forEach(id => $(id).addEventListener('change', run));
+  $('seq').addEventListener('input', () => { clearTimeout(window._t); window._t = setTimeout(run, 300); });
+  $('pos').addEventListener('input', () => { const v = parseInt($('pos').value, 10); mutPos = Number.isFinite(v) && v > 0 ? v - 1 : null; run(); });
+  $('inputSeq').addEventListener('click', e => {
+    const i = e.target.dataset && e.target.dataset.i;
+    if (i === undefined) return;
+    mutPos = +i; $('pos').value = mutPos + 1; run();
+  });
+  $('gGo').addEventListener('click', generateQuestion);
+  $('mcExport').addEventListener('click', () => {
+    const Q = buildMCQ(); if (!Q) { alert('Voor dit gevolg kan geen standaard meerkeuzevraag gemaakt worden.'); return; }
+    const key = `<h2>Sleutel: ${Q.letter}</h2>` + Q.opts.map((o, i) => `<p><b>${'ABCD'[i]}.</b> ${o.why}</p>`).join('') + '<h3>Uitwerking</h3><div class="steps">' + $('steps').innerHTML + '</div>';
+    KL.printDoc('Meerkeuzevraag mutatie', KL.worksheetHead('Meerkeuzevraag') + mcHTML(Q) + '<div style="break-before:page"></div>' + key);
+  });
+  $('mcCopy').addEventListener('click', async e => {
+    const Q = buildMCQ(); if (!Q) return;
+    const t = KL.stripTags(mcHTML(Q).replace(/<\/p>/g, '\n').replace(/<\/div>/g, '\n')) + `\nSleutel: ${Q.letter}\n` + Q.opts.map((o, i) => `${'ABCD'[i]}. ${o.why}`).join('\n');
+    try { await navigator.clipboard.writeText(t); e.target.textContent = 'Gekopieerd ✓'; } catch { alert(t); }
+  });
+  KL.toolbar({ share: () => ({ seq: $('seq').value, strand: $('strand').value, orient: $('orient').value, pos: $('pos').value, nb: $('newBase').value }) });
+  const hp = KL.readHash();
+  if (hp.seq) { $('seq').value = hp.seq; $('strand').value = hp.strand || 'matrijs'; $('orient').value = hp.orient || '53'; $('newBase').value = hp.nb || 'T'; if (hp.pos) { mutPos = +hp.pos - 1; $('pos').value = hp.pos; } setTimeout(run, 0); }
+  $('example').addEventListener('click', () => {
+    $('seq').value = "5'-TGGTCAACC[CTGAAGTCAC]CTTGTA[CTTGAGCTTAC]AGCCAT[CTAGGTCAAC]GGCTACCTAATT-3'";
+    $('strand').value = 'matrijs'; $('orient').value = '53'; $('newBase').value = 'T';
+    mutPos = 22; $('pos').value = 23; run();
+  });
+}
+</script>
+</body>
+</html>
